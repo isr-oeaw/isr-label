@@ -1,0 +1,262 @@
+{% extends '_base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% trans "Edit User" %} - {% trans "ISR Datasets" %}{% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <!-- Header -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item">
+                                <a href="{% url 'user-management' %}">{% trans "User Management" %}</a>
+                            </li>
+                            <li class="breadcrumb-item active" aria-current="page">{% trans "Edit User" %}</li>
+                        </ol>
+                    </nav>
+                    <h1 class="h2 mb-1">
+                        <i class="bi bi-person-gear me-2"></i>
+                        {% trans "Edit User" %}: {{ object.username }}
+                    </h1>
+                    <p class="text-muted">{% trans "Update user information and settings" %}</p>
+                </div>
+            </div>
+
+            <!-- Edit Form -->
+            <div class="card shadow">
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                            <div class="alert alert-danger">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                {% trans "Please correct the errors below." %}
+                                {% if form.non_field_errors %}
+                                    <ul class="mb-0 mt-2">
+                                        {% for error in form.non_field_errors %}
+                                            <li>{{ error }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="{{ form.username.id_for_label }}" class="form-label">
+                                <i class="bi bi-person me-1"></i>
+                                {% trans "Username" %}
+                            </label>
+                            <input 
+                                type="text" 
+                                name="{{ form.username.name }}" 
+                                class="form-control {% if form.username.errors %}is-invalid{% endif %}"
+                                id="{{ form.username.id_for_label }}"
+                                value="{{ form.username.value|default:'' }}"
+                                placeholder="{% trans 'Enter username' %}"
+                                required
+                            >
+                            {% if form.username.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.username.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label">
+                                    <i class="bi bi-person me-1"></i>
+                                    {% trans "First Name" %}
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="{{ form.first_name.name }}" 
+                                    class="form-control {% if form.first_name.errors %}is-invalid{% endif %}"
+                                    id="{{ form.first_name.id_for_label }}"
+                                    value="{{ form.first_name.value|default:'' }}"
+                                    placeholder="{% trans 'Enter first name' %}"
+                                >
+                                {% if form.first_name.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ form.first_name.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label">
+                                    <i class="bi bi-person me-1"></i>
+                                    {% trans "Last Name" %}
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="{{ form.last_name.name }}" 
+                                    class="form-control {% if form.last_name.errors %}is-invalid{% endif %}"
+                                    id="{{ form.last_name.id_for_label }}"
+                                    value="{{ form.last_name.value|default:'' }}"
+                                    placeholder="{% trans 'Enter last name' %}"
+                                >
+                                {% if form.last_name.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ form.last_name.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">
+                                <i class="bi bi-envelope me-1"></i>
+                                {% trans "Email Address" %}
+                            </label>
+                            <input 
+                                type="email" 
+                                name="{{ form.email.name }}" 
+                                class="form-control {% if form.email.errors %}is-invalid{% endif %}"
+                                id="{{ form.email.id_for_label }}"
+                                value="{{ form.email.value|default:'' }}"
+                                placeholder="{% trans 'Enter email address' %}"
+                                required
+                            >
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.email.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        {% if form.role %}
+                        <div class="mb-3">
+                            <label for="{{ form.role.id_for_label }}" class="form-label">
+                                <i class="bi bi-shield me-1"></i>
+                                {% trans "Role" %}
+                            </label>
+                            <select 
+                                name="{{ form.role.name }}" 
+                                class="form-select {% if form.role.errors %}is-invalid{% endif %}"
+                                id="{{ form.role.id_for_label }}"
+                            >
+                                <option value="">{% trans "No role assigned" %}</option>
+                                {% for choice in form.role.field.queryset %}
+                                <option value="{{ choice.pk }}" {% if form.role.value == choice.pk %}selected{% endif %}>
+                                    {{ choice.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% if form.role.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.role.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input 
+                                        type="checkbox" 
+                                        name="{{ form.is_staff.name }}" 
+                                        class="form-check-input {% if form.is_staff.field.widget.attrs.disabled %}text-muted{% endif %}" 
+                                        id="{{ form.is_staff.id_for_label }}"
+                                        {% if form.is_staff.value %}checked{% endif %}
+                                        {% if form.is_staff.field.widget.attrs.disabled %}disabled{% endif %}
+                                    >
+                                    <label class="form-check-label {% if form.is_staff.field.widget.attrs.disabled %}text-muted{% endif %}" for="{{ form.is_staff.id_for_label }}">
+                                        <i class="bi bi-gear me-1"></i>
+                                        {{ form.is_staff.label }}
+                                    </label>
+                                    {% if form.is_staff.help_text %}
+                                        <div class="form-text">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            {{ form.is_staff.help_text }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                {% if form.is_staff.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.is_staff.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check">
+                                    <input 
+                                        type="checkbox" 
+                                        name="{{ form.is_superuser.name }}" 
+                                        class="form-check-input {% if form.is_superuser.field.widget.attrs.disabled %}text-muted{% endif %}" 
+                                        id="{{ form.is_superuser.id_for_label }}"
+                                        {% if form.is_superuser.value %}checked{% endif %}
+                                        {% if form.is_superuser.field.widget.attrs.disabled %}disabled{% endif %}
+                                    >
+                                    <label class="form-check-label {% if form.is_superuser.field.widget.attrs.disabled %}text-muted{% endif %}" for="{{ form.is_superuser.id_for_label }}">
+                                        <i class="bi bi-shield-check me-1"></i>
+                                        {{ form.is_superuser.label }}
+                                    </label>
+                                    {% if form.is_superuser.help_text %}
+                                        <div class="form-text">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            {{ form.is_superuser.help_text }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                {% if form.is_superuser.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.is_superuser.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- User Approval Status -->
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                <div class="form-check">
+                                    <input 
+                                        type="checkbox" 
+                                        name="{{ form.is_approved.name }}" 
+                                        class="form-check-input" 
+                                        id="{{ form.is_approved.id_for_label }}"
+                                        {% if form.is_approved.value %}checked{% endif %}
+                                    >
+                                    <label class="form-check-label" for="{{ form.is_approved.id_for_label }}">
+                                        <i class="bi bi-person-check me-1"></i>
+                                        {{ form.is_approved.label }}
+                                    </label>
+                                    {% if form.is_approved.help_text %}
+                                        <div class="form-text">
+                                            <i class="bi bi-info-circle me-1"></i>
+                                            {{ form.is_approved.help_text }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                {% if form.is_approved.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.is_approved.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'user-management' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>
+                                {% trans "Cancel" %}
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-2"></i>
+                                {% trans "Save Changes" %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

@@ -1,0 +1,38 @@
+services:
+  app:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./app:/usr/src/app
+      - ./app/media:/usr/src/app/media
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy  
+  db:
+    image: postgis/postgis:18-3.6
+    platform: linux/amd64
+    volumes:
+#      - ./db_backup/read:/docker-entrypoint-initdb.d/:ro
+      - postgres_data:/var/lib/postgresql
+    env_file:
+      - .env
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U isruser -d isrlabel"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+  nginx:
+    build: ./nginx
+    volumes:
+      - ./app/staticfiles:/home/app/web/staticfiles
+      - ./app/media:/home/app/web/media
+#      - static_volume:/home/app/web/staticfiles
+    ports:
+      - "80:80"
+    depends_on:
+      - app
+volumes:
+  postgres_data:
+  pgadmin-data:

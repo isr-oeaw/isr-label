@@ -1,0 +1,229 @@
+{% extends "_base.html" %}
+{% load i18n %}
+
+{% block title %}{% if is_own_profile %}{% trans "My Profile" %}{% else %}{{ profile_user.get_full_name|default:profile_user.username }} - {% trans "Profile" %}{% endif %} - {% trans "ISR Datasets" %}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Profile Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center">
+                                <div class="me-3">
+                                    <i class="bi bi-person-circle fs-1 text-primary"></i>
+                                </div>
+                                <div>
+                                    <h2 class="mb-1">
+                                        {% if profile_user.get_full_name %}
+                                            {{ profile_user.get_full_name }}
+                                        {% else %}
+                                            {{ profile_user.username }}
+                                        {% endif %}
+                                    </h2>
+                                    <p class="text-muted mb-1">
+                                        <i class="bi bi-envelope me-1"></i>
+                                        {{ profile_user.email }}
+                                    </p>
+                                    {% if profile_user.role %}
+                                        <span class="badge bg-secondary">
+                                            <i class="bi bi-shield me-1"></i>
+                                            {{ profile_user.role.name }}
+                                        </span>
+                                    {% endif %}
+                                    {% if profile_user.is_superuser %}
+                                        <span class="badge bg-danger ms-1">
+                                            <i class="bi bi-star-fill me-1"></i>
+                                            {% trans "Superuser" %}
+                                        </span>
+                                    {% endif %}
+                                    {% if profile_user.is_staff %}
+                                        <span class="badge bg-warning ms-1">
+                                            <i class="bi bi-gear me-1"></i>
+                                            {% trans "Staff" %}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            {% if is_own_profile %}
+                                <a href="{% url 'user-settings' %}" class="btn btn-outline-primary">
+                                    <i class="bi bi-gear me-2"></i>
+                                    {% trans "Edit Profile" %}
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-folder fs-1 mb-3 text-primary"></i>
+                    <h3 class="card-title">{{ user_projects.count }}</h3>
+                    <p class="card-text">{% trans "Projects" %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-database fs-1 mb-3 text-success"></i>
+                    <h3 class="card-title">{{ user_label_datasets_count|default:0 }}</h3>
+                    <p class="card-text">{% trans "Label datasets" %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-people fs-1 mb-3 text-info"></i>
+                    <h3 class="card-title">{{ user_label_tasks_count|default:0 }}</h3>
+                    <p class="card-text">{% trans "Label tasks" %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card stats-card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-calendar fs-1 mb-3 text-warning"></i>
+                    <h3 class="card-title">{{ profile_user.date_joined|date:"M Y" }}</h3>
+                    <p class="card-text">{% trans "Member Since" %}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Projects and Datasets -->
+    <div class="row">
+        <!-- Projects Section -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-folder me-2"></i>
+                        {% trans "Projects" %}
+                    </h5>
+                    {% if is_own_profile %}
+                        <a href="{% url 'projects:project_create' %}" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-plus-circle me-1"></i>
+                            {% trans "New Project" %}
+                        </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if user_projects %}
+                        <div class="list-group list-group-flush">
+                            {% for project in user_projects %}
+                            <a href="{% url 'projects:project_detail' project.pk %}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ project.title }}</h6>
+                                    <span class="badge {% if project.status == 'active' %}bg-success{% elif project.status == 'completed' %}bg-primary{% elif project.status == 'planning' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                        {{ project.get_status_display }}
+                                    </span>
+                                </div>
+                                <p class="mb-1">{{ project.description|truncatechars:80 }}</p>
+                                <small class="text-muted">
+                                    {% if project.owner == profile_user %}
+                                        <i class="bi bi-crown me-1"></i>{% trans "Owner" %}
+                                    {% else %}
+                                        <i class="bi bi-people me-1"></i>{% trans "Collaborator" %}
+                                    {% endif %}
+                                    • {{ project.labeling_datasets.count }} {% trans "label datasets" %} • {{ project.updated_at|timesince }} {% trans "ago" %}
+                                </small>
+                            </a>
+                            {% endfor %}
+                        </div>
+                        {% if is_own_profile %}
+                            <div class="text-center mt-3">
+                                <a href="{% url 'projects:project_list' %}" class="btn btn-outline-primary btn-sm">
+                                    <i class="bi bi-list me-2"></i>
+                                    {% trans "View All Projects" %}
+                                </a>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-folder fs-1 text-muted mb-3"></i>
+                            <p class="text-muted">
+                                {% if is_own_profile %}
+                                    {% trans "You haven't created or joined any projects yet." %}
+                                {% else %}
+                                    {% trans "This user hasn't created or joined any projects yet." %}
+                                {% endif %}
+                            </p>
+                            {% if is_own_profile %}
+                                <a href="{% url 'projects:project_create' %}" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-plus-circle me-2"></i>
+                                    {% trans "Create Your First Project" %}
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Label datasets Section -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="bi bi-database me-2"></i>
+                        {% trans "Label datasets" %}
+                    </h5>
+                    {% if is_own_profile %}
+                        <a href="{% url 'projects:project_list' %}" class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-folder2-open me-1"></i>
+                            {% trans "Open project" %}
+                        </a>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if user_label_datasets %}
+                        <div class="list-group list-group-flush">
+                            {% for dataset in user_label_datasets %}
+                            <a href="{% url 'labeling:dataset_list' project_id=dataset.project_id %}" class="list-group-item list-group-item-action">
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1">{{ dataset.name }}</h6>
+                                </div>
+                                <p class="mb-1 text-muted small">{{ dataset.project.title }}</p>
+                                <small class="text-muted">
+                                    {{ dataset.images.count }} {% trans "images" %} · {{ dataset.updated_at|timesince }} {% trans "ago" %}
+                                </small>
+                            </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="bi bi-database fs-1 text-muted mb-3"></i>
+                            <p class="text-muted">
+                                {% if is_own_profile %}
+                                    {% trans "No label datasets in your projects yet." %}
+                                {% else %}
+                                    {% trans "No label datasets in this user's projects yet." %}
+                                {% endif %}
+                            </p>
+                            {% if is_own_profile %}
+                                <a href="{% url 'projects:project_create' %}" class="btn btn-success btn-sm">
+                                    <i class="bi bi-plus-circle me-2"></i>
+                                    {% trans "Create a project" %}
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

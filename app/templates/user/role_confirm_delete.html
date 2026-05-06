@@ -1,0 +1,66 @@
+{% extends "_base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% trans "Delete Role" %}{% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-exclamation-triangle"></i> {% trans "Delete Role" %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h5>{% trans "Warning" %}</h5>
+                        <p>{% trans "Are you sure you want to delete the role" %} <strong>"{{ object.name }}"</strong>?</p>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <h6>{% trans "Role Details" %}</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>{% trans "Name" %}:</strong> {{ object.name }}</li>
+                            <li><strong>{% trans "Description" %}:</strong> {{ object.description|default:"-" }}</li>
+                            <li><strong>{% trans "Users with this role" %}:</strong> {{ object.users.count }}</li>
+                            <li><strong>{% trans "Created" %}:</strong> {{ object.created_at|date:"M d, Y" }}</li>
+                        </ul>
+                    </div>
+                    
+                    {% if object.users.count > 0 %}
+                        <div class="alert alert-danger">
+                            <h6>{% trans "Cannot Delete" %}</h6>
+                            <p>{% trans "This role cannot be deleted because it is assigned to" %} {{ object.users.count }} {% trans "user(s)" %}.</p>
+                            <p>{% trans "Please reassign or remove all users from this role before deleting it." %}</p>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'role-list' %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> {% trans "Back to Roles" %}
+                            </a>
+                            <button class="btn btn-danger" disabled>
+                                <i class="bi bi-trash"></i> {% trans "Cannot Delete" %}
+                            </button>
+                        </div>
+                    {% else %}
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'role-list' %}" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left"></i> {% trans "Cancel" %}
+                                </a>
+                                <button type="submit" class="btn btn-danger">
+                                    <i class="bi bi-trash"></i> {% trans "Delete Role" %}
+                                </button>
+                            </div>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

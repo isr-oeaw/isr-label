@@ -1,0 +1,71 @@
+{% extends "account/email/base_message.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Email Confirmation" %} - {{ site_name }}{% endblock %}
+
+{% block header %}
+<h1>{% trans "Confirm Your Email Address" %}</h1>
+{% endblock %}
+
+{% block content %}
+<style>
+    .confirm-button {
+        display: inline-block;
+        background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+        color: white;
+        text-decoration: none;
+        padding: 12px 30px;
+        border-radius: 6px;
+        font-weight: 600;
+        margin: 20px 0;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    .confirm-button:hover {
+        background: linear-gradient(135deg, #0056b3 0%, #004085 100%);
+    }
+    .info-box {
+        background-color: #e9ecef;
+        border-left: 4px solid #007bff;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 4px;
+    }
+    .warning {
+        background-color: #fff3cd;
+        border: 1px solid #ffeaa7;
+        border-radius: 4px;
+        padding: 15px;
+        margin: 20px 0;
+        color: #856404;
+    }
+</style>
+
+<p>{% trans "Hello" %}{% if username %}, {{ username }}{% endif %},</p>
+
+<p>{% blocktrans %}You're receiving this email because you have created an account on ISR Datasets. To complete your registration, please confirm your email address by clicking the button below.{% endblocktrans %}</p>
+
+<div style="text-align: center;">
+    <a href="{{ activate_url }}" class="confirm-button">
+        {% trans "Confirm Email Address" %}
+    </a>
+</div>
+
+<div class="warning">
+    <strong>{% trans "Important:" %}</strong>
+    <p>{% trans "This confirmation link will expire in 7 days. If you didn't create an account, please ignore this email." %}</p>
+</div>
+
+<p>{% trans "If the button doesn't work, you can copy and paste this link into your browser:" %}</p>
+<p style="word-break: break-all; color: #007bff;">
+    {{ activate_url }}
+</p>
+
+{% if username %}
+<div class="info-box">
+    <strong>{% trans "Your username:" %}</strong> {{ username }}
+</div>
+{% endif %}
+
+<p>{% trans "Once confirmed, you'll be able to access all features of the ISR Datasets platform." %}</p>
+{% endblock content %}

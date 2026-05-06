@@ -1,0 +1,60 @@
+{% extends "_base.html" %}
+{% load i18n %}
+{% block title %}{{ project.title }} — {{ SITE_NAME }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'projects:project_list' %}">{% trans "Projects" %}</a></li>
+      <li class="breadcrumb-item active">{{ project.title }}</li>
+    </ol>
+  </nav>
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <h1 class="h2">{{ project.title }}</h1>
+      <span class="badge bg-secondary">{{ project.get_status_display }}</span>
+      <span class="badge bg-info text-dark">{{ project.get_access_level_display }}</span>
+    </div>
+    <div class="d-flex gap-2 flex-wrap">
+      {% if can_edit %}
+      <a class="btn btn-outline-secondary btn-sm" href="{% url 'projects:project_edit' project.pk %}">{% trans "Edit" %}</a>
+      {% endif %}
+      <a class="btn btn-primary btn-sm" href="{% url 'labeling:dashboard' project.pk %}">{% trans "Labeling" %}</a>
+      <a class="btn btn-outline-primary btn-sm" href="{% url 'projects:project_members' project.pk %}">{% trans "Team" %}</a>
+      {% if project.owner == user %}
+      <a class="btn btn-outline-warning btn-sm" href="{% url 'projects:project_transfer_ownership' project.pk %}">{% trans "Transfer ownership" %}</a>
+      {% endif %}
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-lg-8">
+      <div class="card mb-3"><div class="card-body"><p class="lead mb-0">{{ project.description|linebreaks }}</p></div></div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card mb-3">
+        <div class="card-header">{% trans "Owner" %}</div>
+        <div class="card-body"><a href="{% url 'user-profile-detail' project.owner.id %}">{{ project.owner.username }}</a></div>
+      </div>
+      <div class="card mb-3">
+        <div class="card-header">{% trans "Members" %}</div>
+        <div class="card-body">
+          <ul class="list-unstyled mb-0">
+            {% for m in project.memberships.all %}
+            <li>{{ m.user.username }} — {{ m.get_role_display }}</li>
+            {% empty %}
+            <li class="text-muted">—</li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header">{% trans "Label datasets" %}</div>
+        <div class="card-body">
+          <p class="mb-1"><strong>{{ project.labeling_datasets.count }}</strong> {% trans "datasets" %}</p>
+          <a class="btn btn-sm btn-primary" href="{% url 'labeling:dashboard' project.pk %}">{% trans "Open labeling" %}</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

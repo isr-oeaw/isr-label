@@ -1,0 +1,180 @@
+{% extends "_base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% trans "Data Export" %} - {% trans "ISR Datasets" %}{% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h2 mb-1">
+                        <i class="bi bi-download me-2"></i>
+                        {% trans "Data Export" %}
+                    </h1>
+                    <p class="text-muted">{% trans "Download a copy of your personal data for GDPR compliance" %}</p>
+                </div>
+                <div>
+                    <a href="{% url 'user-settings' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left me-2"></i>
+                        {% trans "Back to Settings" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="bi bi-file-earmark-arrow-down me-2"></i>
+                        {% trans "Export Your Data" %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>{% trans "GDPR Right to Data Portability" %}</strong><br>
+                        {% trans "Under GDPR Article 20, you have the right to receive your personal data in a structured, commonly used and machine-readable format. You can choose what data to include and in which format." %}
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                            <div class="alert alert-danger">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                {% trans "Please correct the errors below." %}
+                                {% for field in form %}
+                                    {% for error in field.errors %}
+                                        <p class="mb-0">{{ field.label }}: {{ error }}</p>
+                                    {% endfor %}
+                                {% endfor %}
+                                {% for error in form.non_field_errors %}
+                                    <p class="mb-0">{{ error }}</p>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <div class="mb-4">
+                            <label for="{{ form.format.id_for_label }}" class="form-label">
+                                <i class="bi bi-file-earmark me-1"></i>
+                                {{ form.format.label }}
+                            </label>
+                            {{ form.format }}
+                            {% if form.format.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.format.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                <i class="bi bi-info-circle me-1"></i>
+                                {{ form.format.help_text }}
+                            </div>
+                        </div>
+
+                        <div class="mb-4">
+                            <h6 class="text-primary mb-3">{% trans "Data to Include" %}</h6>
+                            
+                            <div class="form-check mb-3">
+                                {{ form.include_datasets }}
+                                <label class="form-check-label" for="{{ form.include_datasets.id_for_label }}">
+                                    <strong>{{ form.include_datasets.label }}</strong>
+                                </label>
+                                <div class="form-text">{{ form.include_datasets.help_text }}</div>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                {{ form.include_projects }}
+                                <label class="form-check-label" for="{{ form.include_projects.id_for_label }}">
+                                    <strong>{{ form.include_projects.label }}</strong>
+                                </label>
+                                <div class="form-text">{{ form.include_projects.help_text }}</div>
+                            </div>
+
+                            <div class="form-check mb-3">
+                                {{ form.include_activity }}
+                                <label class="form-check-label" for="{{ form.include_activity.id_for_label }}">
+                                    <strong>{{ form.include_activity.label }}</strong>
+                                </label>
+                                <div class="form-text">{{ form.include_activity.help_text }}</div>
+                            </div>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-download me-2"></i>
+                                {% trans "Generate Data Export" %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-shield-check me-2"></i>
+                        {% trans "Your Privacy Rights" %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6 class="text-primary">{% trans "Data Portability" %}</h6>
+                        <p class="small text-muted">
+                            {% trans "You have the right to receive your personal data in a structured format and to transmit it to another service." %}
+                        </p>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6 class="text-primary">{% trans "Data Accuracy" %}</h6>
+                        <p class="small text-muted">
+                            {% trans "You can request correction of inaccurate personal data and completion of incomplete data." %}
+                        </p>
+                    </div>
+
+                    <div class="mb-3">
+                        <h6 class="text-primary">{% trans "Data Erasure" %}</h6>
+                        <p class="small text-muted">
+                            {% trans "You have the right to request deletion of your personal data under certain circumstances." %}
+                        </p>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <small>
+                            <strong>{% trans "Note" %}:</strong>
+                            {% trans "This export contains your personal data. Please handle it securely and delete it when no longer needed." %}
+                        </small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="bi bi-question-circle me-2"></i>
+                        {% trans "Need Help?" %}
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-3">
+                        {% trans "If you have questions about your data or need assistance with the export process, please contact our support team." %}
+                    </p>
+                    <a href="mailto:support@isrdatasets.org" class="btn btn-outline-primary btn-sm">
+                        <i class="bi bi-envelope me-1"></i>
+                        {% trans "Contact Support" %}
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

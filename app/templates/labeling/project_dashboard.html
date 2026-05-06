@@ -1,0 +1,23 @@
+{% extends "_base.html" %}
+{% load i18n %}
+{% block title %}{% trans "Labeling" %} — {{ project.title }}{% endblock %}
+{% block content %}
+<div class="container mt-4">
+  <h1 class="h3">{{ project.title }} — {% trans "Labeling" %}</h1>
+  <p class="text-muted">{% trans "Progress" %}: {{ num_done }} / {{ num_tasks }} {% trans "tasks done" %}</p>
+  <div class="d-flex flex-wrap gap-2 mb-4">
+    <a class="btn btn-primary" href="{% url 'labeling:next' project.id %}">{% trans "Label next" %}</a>
+    <a class="btn btn-outline-primary" href="{% url 'labeling:dataset_list' project.id %}">{% trans "Datasets" %}</a>
+    <a class="btn btn-outline-primary" href="{% url 'labeling:map' project.id %}">{% trans "Map" %}</a>
+    {% if can_admin %}
+    <a class="btn btn-outline-secondary" href="{% url 'labeling:schema' project.id %}">{% trans "Label schema" %}</a>
+    <form class="d-inline" method="post" action="{% url 'labeling_api:project_export' project_pk=project.id %}">
+      {% csrf_token %}
+      <input type="hidden" name="variants" value="coco,yolo,geojson">
+      <button class="btn btn-outline-success" type="submit">{% trans "Export ZIP" %}</button>
+    </form>
+    {% endif %}
+  </div>
+  <a href="{% url 'projects:project_detail' project.pk %}">← {% trans "Back to project" %}</a>
+</div>
+{% endblock %}

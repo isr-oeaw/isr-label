@@ -1,0 +1,76 @@
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-isrdatasets}
+      POSTGRES_USER: ${POSTGRES_USER:-isruser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-isrpassword}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-isruser} -d ${POSTGRES_DB:-isrdatasets}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - internal
+
+  app:
+    image: ghcr.io/silvioheinze/isr-datasets:latest
+    command: >
+      sh -c "python manage.py collectstatic --noinput && python manage.py migrate && uvicorn main.asgi:application --host 0.0.0.0 --port 8000"
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-isrdatasets}
+      - POSTGRES_USER=${POSTGRES_USER:-isruser}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-isrpassword}
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY:-your-secret-key-here}
+      - DJANGO_SETTINGS_MODULE=main.settings
+      - DEBUG=False
+    volumes:
+      - media_data:/usr/src/app/media
+      - static_data:/usr/src/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - internal
+  
+  nginx:
+    image: ghcr.io/silvioheinze/isr-datasets-nginx:latest
+    restart: unless-stopped
+    volumes:
+      - static_data:/home/app/web/staticfiles
+      - media_data:/home/app/web/media
+    depends_on:
+      - app
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dataplexity-isrdatasets.entrypoints=https"
+      - "traefik.http.routers.dataplexity-isrdatasets.rule=Host(`isrdatasets.dataplexity.eu`)"
+      - "traefik.http.routers.dataplexity-isrdatasets.tls=true"
+      - "traefik.http.routers.dataplexity-isrdatasets.tls.certresolver=http"
+      - "traefik.http.routers.dataplexity-isrdatasets.service=dataplexity-isrdatasets"
+      - "traefik.http.services.dataplexity-isrdatasets.loadbalancer.server.port=80"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.dataplexity-isrdatasets.middlewares=default@file"
+    networks:
+      - proxy
+      - internal
+
+networks:
+  internal:
+  proxy:
+    external: true
+
+volumes:
+  postgres_data:
+  media_data:
+  static_data:

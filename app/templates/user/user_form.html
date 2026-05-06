@@ -1,0 +1,206 @@
+{% extends '_base.html' %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}{% trans "Add User" %} - {% trans "ISR Datasets" %}{% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8 col-lg-6">
+            <!-- Header -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item">
+                                <a href="{% url 'user-list' %}">{% trans "Users" %}</a>
+                            </li>
+                            <li class="breadcrumb-item active" aria-current="page">{% trans "Add User" %}</li>
+                        </ol>
+                    </nav>
+                    <h1 class="h2 mb-1">
+                        <i class="bi bi-person-plus me-2"></i>
+                        {% trans "Add User" %}
+                    </h1>
+                    <p class="text-muted">{% trans "Create a new user account" %}</p>
+                </div>
+            </div>
+
+            <!-- Create Form -->
+            <div class="card shadow">
+                <div class="card-body p-4">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                            <div class="alert alert-danger">
+                                <i class="bi bi-exclamation-triangle me-2"></i>
+                                {% trans "Please correct the errors below." %}
+                            </div>
+                        {% endif %}
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label">
+                                    <i class="bi bi-person me-1"></i>
+                                    {% trans "First Name" %}
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="{{ form.first_name.name }}" 
+                                    class="form-control {% if form.first_name.errors %}is-invalid{% endif %}"
+                                    id="{{ form.first_name.id_for_label }}"
+                                    placeholder="{% trans 'Enter first name' %}"
+                                    value="{{ form.first_name.value|default:'' }}"
+                                >
+                                {% if form.first_name.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ form.first_name.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label">
+                                    <i class="bi bi-person me-1"></i>
+                                    {% trans "Last Name" %}
+                                </label>
+                                <input 
+                                    type="text" 
+                                    name="{{ form.last_name.name }}" 
+                                    class="form-control {% if form.last_name.errors %}is-invalid{% endif %}"
+                                    id="{{ form.last_name.id_for_label }}"
+                                    placeholder="{% trans 'Enter last name' %}"
+                                    value="{{ form.last_name.value|default:'' }}"
+                                >
+                                {% if form.last_name.errors %}
+                                    <div class="invalid-feedback">
+                                        {{ form.last_name.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.username.id_for_label }}" class="form-label">
+                                <i class="bi bi-person-circle me-1"></i>
+                                {% trans "Username" %} <span class="text-danger">*</span>
+                            </label>
+                            <input 
+                                type="text" 
+                                name="{{ form.username.name }}" 
+                                class="form-control {% if form.username.errors %}is-invalid{% endif %}"
+                                id="{{ form.username.id_for_label }}"
+                                placeholder="{% trans 'Enter username' %}"
+                                value="{{ form.username.value|default:'' }}"
+                                required
+                            >
+                            {% if form.username.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.username.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.email.id_for_label }}" class="form-label">
+                                <i class="bi bi-envelope me-1"></i>
+                                {% trans "Email Address" %} <span class="text-danger">*</span>
+                            </label>
+                            <input 
+                                type="email" 
+                                name="{{ form.email.name }}" 
+                                class="form-control {% if form.email.errors %}is-invalid{% endif %}"
+                                id="{{ form.email.id_for_label }}"
+                                placeholder="{% trans 'Enter email address' %}"
+                                value="{{ form.email.value|default:'' }}"
+                                required
+                            >
+                            {% if form.email.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.email.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.role.id_for_label }}" class="form-label">
+                                <i class="bi bi-shield me-1"></i>
+                                {% trans "Role" %}
+                            </label>
+                            <select 
+                                name="{{ form.role.name }}" 
+                                class="form-select {% if form.role.errors %}is-invalid{% endif %}"
+                                id="{{ form.role.id_for_label }}"
+                            >
+                                {% for choice in form.role.field.choices %}
+                                    <option value="{{ choice.0 }}" {% if form.role.value == choice.0 %}selected{% endif %}>
+                                        {{ choice.1 }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                            {% if form.role.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.role.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="{{ form.password1.id_for_label }}" class="form-label">
+                                <i class="bi bi-key me-1"></i>
+                                {% trans "Password" %} <span class="text-danger">*</span>
+                            </label>
+                            <input 
+                                type="password" 
+                                name="{{ form.password1.name }}" 
+                                class="form-control {% if form.password1.errors %}is-invalid{% endif %}"
+                                id="{{ form.password1.id_for_label }}"
+                                placeholder="{% trans 'Enter password' %}"
+                                required
+                            >
+                            {% if form.password1.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.password1.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-4">
+                            <label for="{{ form.password2.id_for_label }}" class="form-label">
+                                <i class="bi bi-key-fill me-1"></i>
+                                {% trans "Confirm Password" %} <span class="text-danger">*</span>
+                            </label>
+                            <input 
+                                type="password" 
+                                name="{{ form.password2.name }}" 
+                                class="form-control {% if form.password2.errors %}is-invalid{% endif %}"
+                                id="{{ form.password2.id_for_label }}"
+                                placeholder="{% trans 'Confirm password' %}"
+                                required
+                            >
+                            {% if form.password2.errors %}
+                                <div class="invalid-feedback">
+                                    {{ form.password2.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Form Actions -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'user-list' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>
+                                {% trans "Back to Users" %}
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-person-plus me-2"></i>
+                                {% trans "Create User" %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

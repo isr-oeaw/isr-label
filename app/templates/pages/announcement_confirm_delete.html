@@ -1,0 +1,11 @@
+{% extends "_base.html" %}
+{% load i18n %}
+{% block content %}
+<div class="container mt-4">
+  <h1>{% trans "Delete announcement" %}</h1>
+  <p>{{ object.title }}</p>
+  <form method="post">{% csrf_token %}
+    <button type="submit" class="btn btn-danger">{% trans "Confirm" %}</button>
+  </form>
+</div>
+{% endblock %}

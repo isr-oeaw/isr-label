@@ -1,0 +1,151 @@
+{% extends "_base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+    {% if object %}{% trans "Edit Role" %}{% else %}{% trans "Create Role" %}{% endif %}
+{% endblock title %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="bi bi-shield-check"></i>
+                        {% if object %}
+                            {% trans "Edit Role" %}: {{ object.name }}
+                        {% else %}
+                            {% trans "Create New Role" %}
+                        {% endif %}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.errors %}
+                            <div class="alert alert-danger">
+                                <h5>{% trans "Please correct the following errors:" %}</h5>
+                                {{ form.errors }}
+                            </div>
+                        {% endif %}
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.name.id_for_label }}" class="form-label">
+                                    {% trans "Role Name" %} *
+                                </label>
+                                {{ form.name }}
+                                {% if form.name.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.name.errors.0 }}
+                                    </div>
+                                {% endif %}
+                                <div class="form-text">
+                                    {% trans "A unique name for this role (e.g., 'Admin', 'Manager', 'User')" %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+
+                                <div class="form-text">
+                                    {% trans "Inactive roles cannot be assigned to users" %}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.description.id_for_label }}" class="form-label">
+                                {% trans "Description" %}
+                            </label>
+                            {{ form.description }}
+                            {% if form.description.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.description.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                {% trans "A brief description of what this role is for" %}
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.permissions.id_for_label }}" class="form-label">
+                                {% trans "Permissions" %}
+                            </label>
+                            {{ form.permissions }}
+                            {% if form.permissions.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.permissions.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                {% trans "Enter permissions as JSON array. Example: ['user.view', 'user.edit', 'user.delete']" %}
+                            </div>
+                        </div>
+                        
+                        <!-- Common Permission Examples -->
+                        <div class="mb-3">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h6 class="mb-0">{% trans "Common Permission Examples" %}</h6>
+                                </div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <h6>{% trans "User Management" %}</h6>
+                                            <ul class="list-unstyled small">
+                                                <li><code>user.view</code> - {% trans "View users" %}</li>
+                                                <li><code>user.edit</code> - {% trans "Edit users" %}</li>
+                                                <li><code>user.delete</code> - {% trans "Delete users" %}</li>
+                                                <li><code>user.create</code> - {% trans "Create users" %}</li>
+                                                <li><code>user.manage</code> - {% trans "Full user management" %}</li>
+                                            </ul>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <h6>{% trans "Role Management" %}</h6>
+                                            <ul class="list-unstyled small">
+                                                <li><code>role.view</code> - {% trans "View roles" %}</li>
+                                                <li><code>role.edit</code> - {% trans "Edit roles" %}</li>
+                                                <li><code>role.delete</code> - {% trans "Delete roles" %}</li>
+                                                <li><code>role.create</code> - {% trans "Create roles" %}</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'role-list' %}" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> {% trans "Cancel" %}
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i>
+                                {% if object %}
+                                    {% trans "Update Role" %}
+                                {% else %}
+                                    {% trans "Create Role" %}
+                                {% endif %}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control, .form-select {
+        border-radius: 0.375rem;
+    }
+    
+    .form-check-input:checked {
+        background-color: #0d6efd;
+        border-color: #0d6efd;
+    }
+</style>
+{% endblock content %}

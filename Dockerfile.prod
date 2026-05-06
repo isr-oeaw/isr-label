@@ -1,0 +1,69 @@
+FROM python:slim
+
+# Install runtime dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        gdal-bin \
+        libgdal-dev \
+        python3-dev \
+        gcc \
+        build-essential \
+        libpq-dev \
+        libgeos-dev \
+        proj-bin \
+        proj-data \
+        libproj-dev \
+        libxml2-dev \
+        libxslt-dev \
+        libffi-dev \
+        zlib1g-dev \
+        libjpeg-dev \
+        tzdata \
+        gettext \
+        curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+# Set timezone
+ENV TZ=Europe/Vienna
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONPATH=/usr/src/app
+ENV DJANGO_SETTINGS_MODULE=main.settings
+
+# Create non-root user
+RUN groupadd -r appuser && useradd -r -g appuser appuser
+
+# Set work directory
+WORKDIR /usr/src/app
+
+# Install Python dependencies
+COPY ./requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copy project files
+COPY ./app/ .
+
+# Copy and set up entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+# Create necessary directories and set ownership
+RUN mkdir -p /usr/src/app/media /usr/src/app/staticfiles && \
+    chown -R appuser:appuser /usr/src/app
+
+# Set entrypoint (will run as root, then switch to appuser)
+ENTRYPOINT ["/entrypoint.sh"]
+
+# Expose port
+EXPOSE 8000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+    CMD curl -f http://localhost:8000/health/ || exit 1
+
+# Start Django
+CMD ["python", "manage.py", "runserver", "0.0.0.0:8000"]

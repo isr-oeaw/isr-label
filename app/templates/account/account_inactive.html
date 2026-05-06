@@ -1,0 +1,36 @@
+{% extends "_base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Account Inactive" %} - {% trans "ISR Datasets" %}{% endblock title %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow">
+                <div class="card-header text-center py-4">
+                    <h3 class="mb-0 text-warning">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        {% trans "Account Inactive" %}
+                    </h3>
+                    <p class="text-muted mt-2 mb-0">{% trans "This account is inactive" %}</p>
+                </div>
+                <div class="card-body p-4 text-center">
+                    <div class="mb-4">
+                        <i class="bi bi-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
+                    </div>
+                    <p class="mb-4">
+                        {% trans "This account is inactive." %}
+                    </p>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'home' %}" class="btn btn-primary">
+                            <i class="bi bi-house me-2"></i>
+                            {% trans "Go to Home" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

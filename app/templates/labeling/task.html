@@ -1,0 +1,41 @@
+{% extends "_base.html" %}
+{% load i18n static %}
+{% block title %}{% trans "Label task" %}{% endblock %}
+{% block content %}
+<div class="container-fluid mt-2">
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
+    <a href="{% url 'labeling:dashboard' project.id %}">← {% trans "Labeling" %}</a>
+    <span class="text-muted" id="label-status">{% trans "Loading" %}…</span>
+  </div>
+  <div class="row g-0">
+    <div class="col-12 col-lg-2 border-end p-2 small">{% trans "Task" %} #{{ task.id }} · {% trans "inner" %} {{ task.inner_id }}</div>
+    <div class="col-12 col-lg-8 p-1">
+      <div id="label-stage" class="border bg-dark"></div>
+    </div>
+    <div class="col-12 col-lg-2 border-start p-2">
+      <button type="button" class="btn btn-sm btn-primary w-100 mb-1" id="btn-add-rect">{% trans "Add box" %}</button>
+      <p class="small text-muted">{% trans "V select · B not wired in this MVP layer" %}</p>
+    </div>
+  </div>
+  <div class="p-2">
+    <button type="button" class="btn btn-success" id="btn-submit">{% trans "Submit" %}</button>
+    <a class="btn btn-outline-secondary" href="{% url 'labeling:next' project.id %}">{% trans "Skip / Next" %}</a>
+  </div>
+  <input type="hidden" id="next-url" value="{% url 'labeling:next' project.id %}">
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://unpkg.com/konva@9/konva.min.js"></script>
+<script src="{% static 'labeling/draft.js' %}"></script>
+<script src="{% static 'labeling/annotator.js' %}"></script>
+<script>
+  const schema = {{ schema_json|safe|default:"{}" }};
+  const draft = {{ draft_json|safe|default:"[]" }};
+  const taskId = {{ task.id }};
+  const imageUrl = "{{ image_url|escapejs }}";
+  const apiBase = "";
+  document.addEventListener('DOMContentLoaded', function() {
+    initAnnotator(imageUrl, schema, draft, taskId, apiBase);
+  });
+</script>
+{% endblock %}

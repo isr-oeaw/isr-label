@@ -1,0 +1,4 @@
+{% load i18n %}
+{% block content %}{% endblock %}
+
+{% trans "This is an automated message, please do not reply to this email." %}
