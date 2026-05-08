@@ -1,0 +1,17 @@
+Django>=5.2.6
+psycopg2-binary>=2.9
+gdal==3.6.2
+Pillow>=10.0.0
+uvicorn[standard]>=0.27.0
+django-allauth>=0.57.0
+django-auditlog>=2.2.0
+requests>=2.31.0
+dj-database-url>=2.1.0
+tblib>=1.7.0
+djangorestframework>=3.15.0
+drf-spectacular>=0.27.0
+django-filter>=24.0
+easy-thumbnails>=2.8.0
+django-leaflet>=0.32.0
+pytest>=8.0.0
+pytest-django>=4.8.0

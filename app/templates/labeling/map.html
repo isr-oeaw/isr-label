@@ -1,0 +1,25 @@
+{% extends "_base.html" %}
+{% load i18n static %}
+{% block title %}{% trans "Map" %}{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+{% endblock %}
+{% block content %}
+<div class="container-fluid mt-2">
+  <a href="{% url 'labeling:dashboard' project.id %}">← {% trans "Labeling" %}</a>
+  <div id="map" style="height:70vh;" class="mt-2 border rounded"></div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+const data = {{ geojson|safe }};
+const m = L.map('map');
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(m);
+const g = L.geoJSON(data);
+g.addTo(m);
+if (data.features && data.features.length) m.fitBounds(g.getBounds().pad(0.2));
+else m.setView([48.0, 14.0], 4);
+g.eachLayer(l => l.on('click', e => { const p = e.layer.feature.properties; if (p) alert(JSON.stringify(p)); }));
+</script>
+{% endblock %}

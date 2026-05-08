@@ -1,0 +1,192 @@
+{% extends "_base.html" %}
+{% load i18n %}
+
+{% block title %}{% trans "Verification Sent" %} - {% trans "ISR Datasets" %}{% endblock title %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow">
+                <div class="card-header text-center py-4">
+                    <h3 class="mb-0 text-primary">
+                        <i class="bi bi-shield-check me-2"></i>
+                        {% trans "Verification Sent" %}
+                    </h3>
+                    <p class="text-muted mt-2 mb-0">{% trans "Please check your email" %}</p>
+                </div>
+                <div class="card-body p-4 text-center">
+                    <div class="mb-4">
+                        <i class="bi bi-shield-check text-success" style="font-size: 3rem;"></i>
+                    </div>
+                    <p class="mb-4">
+                        {% trans "We have sent an e-mail to you for verification. Please follow the link provided to finalize the signup process. Please contact us if you do not receive it within a few minutes." %}
+                    </p>
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        <strong>{% trans "Didn't receive the email?" %}</strong><br>
+                        {% trans "Please check your spam folder and click 'Send Again' if needed." %}
+                    </div>
+                    
+                    <!-- Fallback email input (hidden by default) -->
+                    <div id="email-input-section" class="mb-3" style="display: none;">
+                        <label for="resend-email-input" class="form-label">{% trans "Email Address" %}</label>
+                        <input type="email" class="form-control" id="resend-email-input" 
+                               placeholder="{% trans 'Enter your email address' %}">
+                        <div class="form-text">{% trans "If the automatic resend doesn't work, enter your email address here." %}</div>
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <button type="button" class="btn btn-outline-primary" id="resend-verification-btn">
+                            <i class="bi bi-arrow-clockwise me-2"></i>
+                            {% trans "Send Again" %}
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="show-email-input-btn">
+                            <i class="bi bi-envelope me-2"></i>
+                            {% trans "Enter Email Manually" %}
+                        </button>
+                        <a href="{% url 'home' %}" class="btn btn-primary">
+                            <i class="bi bi-house me-2"></i>
+                            {% trans "Go to Home" %}
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const resendBtn = document.getElementById('resend-verification-btn');
+    const showEmailBtn = document.getElementById('show-email-input-btn');
+    const emailInputSection = document.getElementById('email-input-section');
+    const emailInput = document.getElementById('resend-email-input');
+    const originalText = resendBtn.innerHTML;
+    
+    // Show email input when button is clicked
+    showEmailBtn.addEventListener('click', function() {
+        emailInputSection.style.display = 'block';
+        showEmailBtn.style.display = 'none';
+        emailInput.focus();
+    });
+    
+    resendBtn.addEventListener('click', function() {
+        // Get email from input if available, otherwise from template
+        const email = emailInput.value.trim() || '{{ user.email|default:"" }}';
+        
+        if (!email) {
+            // Show email input if no email available
+            emailInputSection.style.display = 'block';
+            showEmailBtn.style.display = 'none';
+            emailInput.focus();
+            return;
+        }
+        
+        // Disable button and show loading state
+        resendBtn.disabled = true;
+        resendBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>{% trans "Sending..." %}';
+        
+        // Send AJAX request
+        fetch('{% url "resend-email-verification" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                              document.querySelector('meta[name=csrf-token]')?.getAttribute('content') || '',
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                email: email
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                resendBtn.innerHTML = '<i class="bi bi-check-circle me-2"></i>{% trans "Sent!" %}';
+                resendBtn.classList.remove('btn-outline-primary');
+                resendBtn.classList.add('btn-success');
+                
+                // Show success alert
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+                alertDiv.innerHTML = `
+                    <i class="bi bi-check-circle me-2"></i>
+                    ${data.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                resendBtn.parentNode.appendChild(alertDiv);
+                
+                // Re-enable button after 3 seconds
+                setTimeout(() => {
+                    resendBtn.disabled = false;
+                    resendBtn.innerHTML = originalText;
+                    resendBtn.classList.remove('btn-success');
+                    resendBtn.classList.add('btn-outline-primary');
+                }, 3000);
+            } else {
+                // Show error message
+                resendBtn.innerHTML = '<i class="bi bi-exclamation-circle me-2"></i>{% trans "Error" %}';
+                resendBtn.classList.remove('btn-outline-primary');
+                resendBtn.classList.add('btn-danger');
+                
+                // Show error alert
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+                alertDiv.innerHTML = `
+                    <i class="bi bi-exclamation-circle me-2"></i>
+                    ${data.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                resendBtn.parentNode.appendChild(alertDiv);
+                
+                // If it's a user not found error, show email input
+                if (data.message.includes('User not found') || data.message.includes('not found')) {
+                    emailInputSection.style.display = 'block';
+                    showEmailBtn.style.display = 'none';
+                    emailInput.focus();
+                }
+                
+                // Re-enable button after 3 seconds
+                setTimeout(() => {
+                    resendBtn.disabled = false;
+                    resendBtn.innerHTML = originalText;
+                    resendBtn.classList.remove('btn-danger');
+                    resendBtn.classList.add('btn-outline-primary');
+                }, 3000);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            // Show error message
+            resendBtn.innerHTML = '<i class="bi bi-exclamation-circle me-2"></i>{% trans "Error" %}';
+            resendBtn.classList.remove('btn-outline-primary');
+            resendBtn.classList.add('btn-danger');
+            
+            // Show error alert
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+            alertDiv.innerHTML = `
+                <i class="bi bi-exclamation-circle me-2"></i>
+                {% trans "An error occurred while sending the email. Please try again." %}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            resendBtn.parentNode.appendChild(alertDiv);
+            
+            // Show email input for manual entry
+            emailInputSection.style.display = 'block';
+            showEmailBtn.style.display = 'none';
+            emailInput.focus();
+            
+            // Re-enable button after 3 seconds
+            setTimeout(() => {
+                resendBtn.disabled = false;
+                resendBtn.innerHTML = originalText;
+                resendBtn.classList.remove('btn-danger');
+                resendBtn.classList.add('btn-outline-primary');
+            }, 3000);
+        });
+    });
+});
+</script>
+{% endblock content %}

@@ -1,0 +1,13 @@
+{% extends "_base.html" %}
+{% load i18n %}
+{% block title %}{% trans "Change role" %}{% endblock %}
+{% block content %}
+<div class="container mt-4" style="max-width: 480px;">
+  <h1 class="h4">{% trans "Change role" %}</h1>
+  <form method="post">{% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn btn-primary" type="submit">{% trans "Save" %}</button>
+    <a class="btn btn-link" href="{% url 'projects:project_members' object.project.pk %}">{% trans "Cancel" %}</a>
+  </form>
+</div>
+{% endblock %}

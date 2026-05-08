@@ -1,0 +1,16 @@
+{% extends "_base.html" %}
+{% load i18n %}
+{% block title %}{% trans "Upload" %} — {{ dataset.name }}{% endblock %}
+{% block content %}
+<div class="container mt-4" style="max-width: 560px;">
+  <h1 class="h4">{% trans "Upload images" %}</h1>
+  <p class="text-muted">{{ dataset.name }}</p>
+  <form method="post" enctype="multipart/form-data">{% csrf_token %}
+    <div class="mb-3">
+      <label class="form-label" for="id_file">{% trans "Images" %}</label>
+      <input class="form-control" type="file" name="file" id="id_file" multiple required>
+    </div>
+    <button class="btn btn-primary" type="submit">{% trans "Upload" %}</button>
+  </form>
+</div>
+{% endblock %}

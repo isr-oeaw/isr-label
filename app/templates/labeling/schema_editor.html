@@ -1,0 +1,14 @@
+{% extends "_base.html" %}
+{% load i18n %}
+{% block title %}{% trans "Label schema" %}{% endblock %}
+{% block content %}
+<div class="container mt-4" style="max-width: 720px;">
+  <h1 class="h4">{% trans "Label schema (JSON)" %}</h1>
+  <p class="text-muted">{% trans "Define tools, labels, colors. See documentation." %}</p>
+  <form method="post">{% csrf_token %}
+    {{ form.as_p }}
+    <button class="btn btn-primary" type="submit">{% trans "Save" %}</button>
+    <a class="btn btn-link" href="{% url 'labeling:dashboard' project.id %}">{% trans "Back" %}</a>
+  </form>
+</div>
+{% endblock %}
