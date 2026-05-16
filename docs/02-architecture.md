@@ -4,7 +4,7 @@
 
 | App | Responsibility |
 |-----|----------------|
-| `user` | `CustomUser`, `Role`, `APIKey`, allauth |
+| `user` | `CustomUser`, `Role`, allauth |
 | `pages` | Home, announcements |
 | `projects` | `Project`, `ProjectMembership` |
 | `labeling` | Datasets, images, tasks, annotations, API surface |
@@ -15,7 +15,7 @@
 1. **Upload**: Browser POST → Django view creates `ImageAsset` (+EXIF) → may create `Task` for active schema.
 2. **Label**: User opens `Task` page → client loads image + `LabelSchema.config` + draft JSON → Konva edits → debounced `PATCH` draft.
 3. **Submit**: `POST` creates `Annotation`, updates task counters, releases lock.
-4. **Export**: `POST` export assembles ZIP (COCO / YOLO / GeoJSON) from `Annotation.result`.
+4. **Export**: `POST` export assembles ZIP (COCO / YOLO) from `Annotation.result`.
 
 ## API
 
@@ -27,6 +27,8 @@
 
 - **PostGIS** (GeoDjango) for `ImageAsset.location` (`PointField`, SRID 4326).
 - Development `docker-compose` uses `postgis/postgis:16-3.4` to match production.
+
+**Tests:** use Docker Compose (`app` container + `db`) so GIS libraries and the database match this stack; see [Running tests (Docker Compose)](README.md#running-tests-docker-compose) in `docs/README.md`.
 
 ## Storage
 

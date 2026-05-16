@@ -224,6 +224,17 @@ class Project(models.Model):
             return [t.strip() for t in self.tags.split(',') if t.strip()]
         return []
 
+    def delete(self, *args, **kwargs):
+        # Tasks use PROTECT to image/schema; remove them first so CASCADE from
+        # project can delete LabelDataset / LabelSchema / ImageAsset rows.
+        from django.db import transaction
+
+        from labeling.models import Task
+
+        with transaction.atomic():
+            Task.objects.filter(project_id=self.pk).delete()
+            super().delete(*args, **kwargs)
+
 
 def ensure_owner_membership(project):
     """Owner always has an admin ProjectMembership row."""

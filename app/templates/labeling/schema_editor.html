@@ -1,14 +1,359 @@
 {% extends "_base.html" %}
 {% load i18n %}
-{% block title %}{% trans "Label schema" %}{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+{% endblock %}
+{% block title %}{% trans "Labeling setup" %} — {{ project.title }}{% endblock %}
+
+{% block navbar_trail %}
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <a class="nav-link" href="{% url 'projects:project_detail' project.pk %}">{{ project.title }}</a>
+</li>
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <a class="nav-link" href="{% url 'labeling:schema_list' project.id %}">{% trans "Labeling setup" %}</a>
+</li>
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <span class="navbar-text text-white fw-semibold mb-0 py-2">{% trans "Edit" %}</span>
+</li>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-4" style="max-width: 720px;">
-  <h1 class="h4">{% trans "Label schema (JSON)" %}</h1>
-  <p class="text-muted">{% trans "Define tools, labels, colors. See documentation." %}</p>
-  <form method="post">{% csrf_token %}
-    {{ form.as_p }}
-    <button class="btn btn-primary" type="submit">{% trans "Save" %}</button>
-    <a class="btn btn-link" href="{% url 'labeling:dashboard' project.id %}">{% trans "Back" %}</a>
+{% trans "Image-level classes only: choose categories for the whole photo without drawing shapes." as tip_classification %}
+{% trans "Bounding boxes: axis-aligned rectangles for object detection." as tip_rect %}
+{% trans "Polygons: outline regions with vertices. Required for importing segmentation masks (PNG/TIF are converted to polygons)." as tip_polygon %}
+{% trans "Points: single-pixel markers or keypoint locations." as tip_point %}
+<div class="container-lg mt-4 schema-editor-page pb-5 mb-0">
+  <p class="mb-3"><a href="{% url 'projects:project_detail' project.pk %}" class="text-decoration-none"><i class="bi bi-arrow-left"></i> {% trans "Back to project" %}</a></p>
+  <h1 class="h3 mb-2">{% trans "Edit labeling setup" %}</h1>
+  {% if setup_template_label %}
+  <p class="text-muted small mb-3">{% trans "Based on template:" %} {{ setup_template_label }}</p>
+  {% endif %}
+
+  {% if schema_has_tasks or schema_has_annotations %}
+  <div class="alert alert-warning d-flex gap-2 align-items-start">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+    <div>
+      <strong class="d-block mb-1">{% trans "This project already has tasks or saved annotations for this setup" %}</strong>
+      <ul class="mb-0 ps-3 small">
+        <li>{% trans "Changing tools or removing label IDs can make existing annotations inconsistent with exports." %}</li>
+        <li>{% trans "Renaming labels is usually safe; changing label IDs can break mask import mappings and downstream scripts." %}</li>
+        <li>{% trans "Applying a new template replaces the whole setup—use with care if work is in progress." %}</li>
+      </ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <form method="post" class="mt-3" id="schema-edit-form" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <div class="card shadow-sm border-0 bg-light mb-4">
+      <div class="card-body py-3">
+        <div class="row g-3 align-items-center">
+          <div class="col-lg-8">
+            <span class="text-uppercase small text-muted fw-semibold d-block mb-2">{% trans "Summary" %}</span>
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+              <span class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-3 py-2">
+                {% blocktrans count counter=summary_tools_count %}{{ counter }} tool{% plural %}{{ counter }} tools{% endblocktrans %}
+              </span>
+              <span class="badge rounded-pill bg-secondary-subtle text-secondary border px-3 py-2">
+                {% blocktrans count counter=summary_labels_count %}{{ counter }} label{% plural %}{{ counter }} labels{% endblocktrans %}
+              </span>
+              {% if summary_allow_empty %}
+              <span class="badge rounded-pill text-bg-light border">{% trans "Empty submit: allowed" %}</span>
+              {% else %}
+              <span class="badge rounded-pill text-bg-light border">{% trans "Empty submit: not allowed" %}</span>
+              {% endif %}
+              {% if summary_multi_label %}
+              <span class="badge rounded-pill text-bg-light border">{% trans "Multi-label classification" %}</span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-lg-4 text-lg-end">
+            {% if preview_labeling_url %}
+            <a class="btn btn-sm btn-outline-primary" href="{{ preview_labeling_url }}">{% trans "Open next labeling task" %}</a>
+            <p class="small text-muted mb-0 mt-1">{% trans "Preview how annotators see tasks for this setup." %}</p>
+            {% else %}
+            <p class="small text-muted mb-0">{% trans "Add images and create tasks to preview the labeling interface from here." %}</p>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white py-3 d-flex align-items-center gap-2">
+        <span class="badge rounded-pill bg-secondary">{% trans "Step" %} 0</span>
+        <span class="fw-semibold">{% trans "Annotator instructions" %}</span>
+      </div>
+      <div class="card-body">
+        <label class="form-label" for="{{ form.instructions.id_for_label }}">{{ form.instructions.label }}</label>
+        {{ form.instructions }}
+        {% if form.instructions.help_text %}<p class="form-text mb-0">{{ form.instructions.help_text }}</p>{% endif %}
+        {% if form.instructions.errors %}<div class="invalid-feedback d-block">{{ form.instructions.errors }}</div>{% endif %}
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-4 border-0 bg-light">
+      <div class="card-body py-3">
+        <div class="form-check form-switch mb-0">
+          {{ form.use_advanced_json }}
+          <label class="form-check-label ms-1" for="{{ form.use_advanced_json.id_for_label }}">{{ form.use_advanced_json.label }}</label>
+        </div>
+        <p class="text-muted small mb-0 mt-2">{% trans "Advanced mode shows the raw JSON editor (with syntax highlighting). Guided fields below are hidden." %}</p>
+      </div>
+    </div>
+
+    <div class="row g-4">
+      <div class="col-lg-5">
+        <div id="guided-fields" class="guided-setup-fields d-flex flex-column gap-4">
+          <div class="card shadow-sm h-100">
+            <div class="card-header bg-white py-3 d-flex flex-wrap align-items-center gap-2">
+              <span class="badge rounded-pill bg-secondary">{% trans "Step" %} 1</span>
+              <span class="fw-semibold"><i class="bi bi-tools me-2 text-primary"></i>{% trans "Modality — annotation tools" %}</span>
+            </div>
+            <div class="card-body">
+              <p class="small text-muted mb-3">{% trans "Choose what annotators can draw or select. Use the help icon for each tool." %}</p>
+              <div class="row g-2">
+                {% for value, label in form.tools.field.choices %}
+                <div class="col-12">
+                  <div class="border rounded p-3 h-100 tool-option {% if value in selected_tools %}border-primary bg-primary bg-opacity-10{% endif %}">
+                    <div class="d-flex align-items-start gap-2">
+                      <input type="checkbox" class="form-check-input flex-shrink-0 mt-1" name="tools" value="{{ value }}" id="id_tool_{{ value }}"
+                        {% if value in selected_tools %}checked{% endif %}>
+                      <div class="flex-grow-1 min-w-0">
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                          <label class="form-check-label fw-semibold d-flex align-items-center gap-2 mb-0" for="id_tool_{{ value }}">
+                            {% if value == 'classification' %}
+                            <i class="bi bi-bookmarks text-primary" aria-hidden="true"></i>
+                            {% elif value == 'rect' %}
+                            <i class="bi bi-bounding-box text-primary" aria-hidden="true"></i>
+                            {% elif value == 'polygon' %}
+                            <i class="bi bi-pentagon text-primary" aria-hidden="true"></i>
+                            {% elif value == 'point' %}
+                            <i class="bi bi-geo-alt text-primary" aria-hidden="true"></i>
+                            {% else %}
+                            <i class="bi bi-pencil text-primary" aria-hidden="true"></i>
+                            {% endif %}
+                            <span>{{ label }}</span>
+                          </label>
+                          <button type="button" class="btn btn-link btn-sm text-muted p-0 border-0"
+                            data-bs-toggle="tooltip" data-bs-placement="top"
+                            title="{% if value == 'classification' %}{{ tip_classification }}{% elif value == 'rect' %}{{ tip_rect }}{% elif value == 'polygon' %}{{ tip_polygon }}{% elif value == 'point' %}{{ tip_point }}{% endif %}"
+                            aria-label="{% trans 'Help' %}">
+                            <i class="bi bi-question-circle"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                {% endfor %}
+              </div>
+              {% if form.tools.errors %}<div class="invalid-feedback d-block small mt-2">{{ form.tools.errors }}</div>{% endif %}
+            </div>
+          </div>
+
+          <div class="card shadow-sm border-success border-opacity-50">
+            <div class="card-header bg-white py-3 d-flex flex-wrap align-items-center gap-2">
+              <span class="badge rounded-pill bg-secondary">{% trans "Step" %} 2</span>
+              <span class="fw-semibold"><i class="bi bi-layers me-2 text-success"></i>{% trans "Segmentation & mask import" %}</span>
+            </div>
+            <div class="card-body">
+              <div class="form-check form-switch mb-3">
+                {{ form.mask_import_enabled }}
+                <label class="form-check-label" for="{{ form.mask_import_enabled.id_for_label }}">{{ form.mask_import_enabled.label }}</label>
+              </div>
+              <p class="small text-muted mb-2">{{ form.mask_import_enabled.help_text }}</p>
+              <div class="small bg-light border rounded p-3 mb-0">
+                <strong class="d-block mb-1">{% trans "How it works" %}</strong>
+                <ul class="mb-0 ps-3">
+                  <li>{% trans "Enable the polygon tool above (masks are converted to polygons)." %}</li>
+                  <li>{% trans "Pixel values in the mask must map to label IDs using a JSON mapping on import." %}</li>
+                  <li>{% trans "Use the REST endpoint import_masks or the import_mask_prelabels management command." %}</li>
+                </ul>
+                <a href="{% url 'documentation' %}" class="small d-inline-block mt-2">{% trans "Documentation" %}</a>
+                <span class="text-muted small">{% trans "— see repository docs on segmentation import (10-segmentation-import.md)." %}</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="card shadow-sm">
+            <div class="card-header bg-white py-3 d-flex flex-wrap align-items-center gap-2">
+              <span class="badge rounded-pill bg-secondary">{% trans "Step" %} 3</span>
+              <span class="fw-semibold"><i class="bi bi-sliders me-2 text-secondary"></i>{% trans "Submission rules" %}</span>
+            </div>
+            <div class="card-body">
+              <div class="d-flex align-items-start gap-2 mb-3">
+                <div class="form-check mb-0 flex-grow-1">
+                  {{ form.allow_empty }}
+                  <label class="form-check-label" for="{{ form.allow_empty.id_for_label }}">{{ form.allow_empty.label }}</label>
+                </div>
+                <button type="button" class="btn btn-link btn-sm text-muted p-0 border-0 flex-shrink-0" data-bs-toggle="tooltip"
+                  title="{% trans 'Annotators may submit with no regions when this is allowed.' %}" aria-label="{% trans 'Help' %}">
+                  <i class="bi bi-question-circle"></i>
+                </button>
+              </div>
+              <div class="d-flex align-items-start gap-2">
+                <div class="form-check mb-0 flex-grow-1">
+                  {{ form.multi_label }}
+                  <label class="form-check-label" for="{{ form.multi_label.id_for_label }}">{{ form.multi_label.label }}</label>
+                </div>
+                <button type="button" class="btn btn-link btn-sm text-muted p-0 border-0 flex-shrink-0" data-bs-toggle="tooltip"
+                  title="{% trans 'Allow more than one classification tag per image where applicable.' %}" aria-label="{% trans 'Help' %}">
+                  <i class="bi bi-question-circle"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-7">
+        <div id="guided-labels" class="guided-setup-fields">
+          <div class="card shadow-sm mb-4">
+            <div class="card-header bg-white d-flex justify-content-between align-items-center py-3 flex-wrap gap-2">
+              <div class="d-flex flex-wrap align-items-center gap-2">
+                <span class="badge rounded-pill bg-secondary">{% trans "Step" %} 4</span>
+                <span class="fw-semibold"><i class="bi bi-tags me-2 text-primary"></i>{% trans "Labels" %}</span>
+              </div>
+              <span class="small text-muted">{% trans "Keep IDs stable—they are used in exports and mask import." %}</span>
+            </div>
+            <div class="card-body p-0">
+              {{ label_formset.management_form }}
+              {% if label_formset.non_form_errors %}
+              <div class="alert alert-danger m-3">{{ label_formset.non_form_errors }}</div>
+              {% endif %}
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th class="ps-3">{% trans "Label id" %}</th>
+                      <th>{% trans "Name" %}</th>
+                      <th class="text-center" style="width:5rem;">{% trans "Swatch" %}</th>
+                      <th style="width:5rem;">{% trans "Color" %}</th>
+                      <th style="width:5rem;">{% trans "Hotkey" %}</th>
+                      <th style="width:4rem;">{% trans "Del" %}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for f in label_formset %}
+                    <tr>
+                      <td class="ps-3">{{ f.label_id }}{% if f.label_id.errors %}<div class="text-danger small">{{ f.label_id.errors }}</div>{% endif %}</td>
+                      <td>{{ f.name }}{% if f.name.errors %}<div class="text-danger small">{{ f.name.errors }}</div>{% endif %}</td>
+                      <td class="text-center">
+                        {% with fc=f.color.value|default:f.color.field.initial %}
+                        <span class="d-inline-block rounded border color-swatch-preview" style="width:1.75rem;height:1.75rem;background-color:{{ fc }};" title="{{ fc }}"></span>
+                        {% endwith %}
+                      </td>
+                      <td>{{ f.color }}{% if f.color.errors %}<div class="text-danger small">{{ f.color.errors }}</div>{% endif %}</td>
+                      <td>{{ f.hotkey }}{% if f.hotkey.errors %}<div class="text-danger small">{{ f.hotkey.errors }}</div>{% endif %}</td>
+                      <td>{% if f.DELETE %}{{ f.DELETE }}{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="advanced-fields" class="guided-setup-fields d-none mb-4">
+          <div class="card shadow-sm">
+            <div class="card-header bg-white py-3 d-flex flex-wrap align-items-center gap-2">
+              <span class="badge rounded-pill bg-secondary">{% trans "Step" %} 5</span>
+              <span class="fw-semibold font-monospace small">{% trans "Raw JSON" %}</span>
+            </div>
+            <div class="card-body">
+              <p class="small text-muted">{% trans "Common top-level keys:" %} <code>tools</code>, <code>labels</code>, <code>allow_empty</code>, <code>multi_label</code>, <code>instructions</code>, <code>_meta</code>.</p>
+              <label class="form-label visually-hidden" for="{{ form.config_text.id_for_label }}">{{ form.config_text.label }}</label>
+              {{ form.config_text }}
+              {% if form.config_text.errors %}<div class="invalid-feedback d-block">{{ form.config_text.errors }}</div>{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="position-sticky bottom-0 py-3 mt-2 mb-4 border-top bg-body shadow-sm schema-editor-sticky-actions" style="z-index: 1020;">
+      <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+        <div class="form-check mb-0">
+          {{ form.is_active }}
+          <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="submit" class="btn btn-primary px-4">{% trans "Save" %}</button>
+          <a class="btn btn-outline-secondary" href="{% url 'labeling:schema_list' project.id %}">{% trans "Cancel" %}</a>
+        </div>
+      </div>
+    </div>
   </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/javascript/javascript.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+(function () {
+  var adv = document.getElementById('{{ form.use_advanced_json.id_for_label }}');
+  var configTa = document.getElementById('id_config_text');
+  var cm = null;
+
+  function sync() {
+    var on = adv && adv.checked;
+    document.querySelectorAll('.guided-setup-fields').forEach(function (el) {
+      if (el.id === 'advanced-fields') {
+        el.classList.toggle('d-none', !on);
+      } else if (el.id === 'guided-fields') {
+        el.classList.toggle('d-none', on);
+      }
+    });
+    var labels = document.getElementById('guided-labels');
+    if (labels) labels.classList.toggle('d-none', on);
+
+    if (on && configTa && window.CodeMirror) {
+      if (!cm) {
+        cm = CodeMirror.fromTextArea(configTa, {
+          mode: { name: 'javascript', json: true },
+          lineNumbers: true,
+          indentUnit: 2,
+          tabSize: 2,
+        });
+      }
+      setTimeout(function () { cm.refresh(); }, 10);
+    } else if (!on && cm) {
+      cm.save();
+      cm.toTextArea();
+      cm = null;
+    }
+  }
+  if (adv) {
+    adv.addEventListener('change', sync);
+    sync();
+  }
+
+  document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function (el) {
+    new bootstrap.Tooltip(el);
+  });
+
+  var form = document.getElementById('schema-edit-form');
+  if (form) {
+    form.addEventListener('submit', function () {
+      if (cm) cm.save();
+    });
+  }
+})();
+</script>
 {% endblock %}

@@ -37,6 +37,19 @@ def can_export(user, project: Project) -> bool:
     return r in (ProjectMembership.Role.ADMIN, ProjectMembership.Role.REVIEWER)
 
 
+def can_download_labeling_export(user, project: Project) -> bool:
+    """Who may download project labeling ZIP (browser or API). Matches project_export."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser or user.id == project.owner_id:
+        return True
+    m = project.get_membership(user)
+    return m is not None and m.role in (
+        ProjectMembership.Role.ADMIN,
+        ProjectMembership.Role.REVIEWER,
+    )
+
+
 def _project_for_obj(obj) -> Project | None:
     if isinstance(obj, Project):
         return obj

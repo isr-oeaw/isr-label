@@ -29,7 +29,8 @@ open http://localhost
 | Follow logs (all services) | `docker compose logs -f` |
 | Logs for one service | `docker compose logs -f app` or `docker compose logs -f db` |
 | Shell inside the app container | `docker compose exec app bash` |
-| Run Django management commands | `docker compose exec app python manage.py <command>` |
+| Run tests (pytest, one-off container) | `docker compose up -d db` then `docker compose run --rm app python -m pytest` |
+| Run tests (reuse running `app`) | `docker compose exec app python -m pytest` |
 | One-off app container (fresh entrypoint: migrate, then command) | `docker compose run --rm app <command>` |
 
 ## Django in Docker
@@ -46,12 +47,43 @@ docker compose exec app python manage.py createsuperuser
 docker compose exec app python manage.py shell
 ```
 
-## Tests
+## Tests (Docker Compose)
+
+Run the test suite **inside the app container** so GDAL/PostGIS match production and you do not need a local Python/GDAL install.
+
+**Prerequisites:** the `db` service must be reachable. The easiest way is to start it first (or bring up the full stack):
 
 ```bash
-# Requires the database to be up (e.g. `docker compose up -d db` or full stack)
-docker compose run --rm app pytest
+docker compose up -d db
 ```
+
+**One-off test run** (starts a temporary `app` container; the image **entrypoint** waits for Postgres, runs `collectstatic`, `makemigrations` / `migrate`, then runs your command). First run after an image change can take a minute:
+
+```bash
+# All tests (pytest discovers tests under the mounted ./app tree)
+docker compose run --rm app python -m pytest
+
+# Single app / path
+docker compose run --rm app python -m pytest labeling/ -q
+
+# Django’s test runner (alternative)
+docker compose run --rm app python manage.py test
+docker compose run --rm app python manage.py test labeling
+```
+
+**Faster iteration** when the stack is already up (reuses the long-running `app` container; **skips** the entrypoint on each invocation):
+
+```bash
+docker compose up -d   # db + app (+ nginx if you need it)
+docker compose exec app python -m pytest
+docker compose exec app python -m pytest labeling/ -q
+docker compose exec app python manage.py test labeling
+```
+
+**Troubleshooting**
+
+- If `run` fails with database connection errors, ensure `docker compose ps` shows `db` as healthy: `docker compose up -d db` and wait for the healthcheck.
+- Tests use the **same** Postgres service as dev by default; Django’s test runner uses a separate test database name when configured in settings (see `main/settings.py`).
 
 ## Project layout (high level)
 

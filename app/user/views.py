@@ -1,7 +1,7 @@
 import datetime
 from django.urls import reverse_lazy
-from django.views.generic import CreateView, DeleteView, TemplateView, UpdateView, ListView
-from django.views.generic.list import ListView
+from django.views.generic import CreateView, DeleteView, TemplateView, UpdateView, ListView, FormView
+
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
@@ -9,22 +9,62 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.db.models import Q
+from django.db.models.deletion import ProtectedError
 from django.core.paginator import Paginator
 from django.core.exceptions import PermissionDenied
-from django.utils.translation import gettext_lazy as _
+from django.utils.translation import gettext_lazy as _, gettext
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 
-from .forms import CustomUserCreationForm, CustomUserEditForm, RoleForm, RoleFilterForm, UserSettingsForm, UserNotificationForm, UserProfileForm, DataExportForm, APIKeyCreateForm, APIKeyRevokeForm
-from .models import Role, APIKey
+from .forms import (
+    CustomUserCreationForm,
+    CustomUserEditForm,
+    RoleForm,
+    RoleFilterForm,
+    UserSettingsForm,
+    UserNotificationForm,
+    UserProfileForm,
+    DataExportForm,
+    SuperuserSetPasswordForm,
+)
+from .models import Role
 
 CustomUser = get_user_model()
 
 
+def _ensure_verified_email_for_approved_user(user):
+    """
+    When staff approves a user, mark their primary login email verified in allauth
+    so the EmailAddress row matches the approved account.
+    """
+    if not getattr(user, "is_approved", False) or not user.email:
+        return
+    from allauth.account.models import EmailAddress
+
+    email_norm = user.email.strip().lower()
+    ea = EmailAddress.objects.filter(user=user, email__iexact=email_norm).first()
+    if ea:
+        EmailAddress.objects.filter(user=user, primary=True).exclude(pk=ea.pk).update(primary=False)
+        update_fields = []
+        if not ea.verified:
+            ea.verified = True
+            update_fields.append("verified")
+        if not ea.primary:
+            ea.primary = True
+            update_fields.append("primary")
+        if update_fields:
+            ea.save(update_fields=update_fields)
+        return
+    EmailAddress.objects.filter(user=user).update(primary=False)
+    EmailAddress.objects.create(
+        user=user, email=email_norm, primary=True, verified=True
+    )
+
+
 def _setup_allauth_email_after_signup(request, user, *, created_by_admin):
-    """Create allauth EmailAddress and send verification e-mail, or mark verified if created by staff."""
+    """Create allauth EmailAddress; send signup confirmation only if verification is enabled."""
     from allauth.account import app_settings as allauth_settings
     from allauth.account.internal.flows.email_verification import (
         send_verification_email_to_address,
@@ -118,12 +158,6 @@ def SettingsView(request):
         profile_form = UserProfileForm(instance=request.user)
         settings_form = UserSettingsForm(instance=request.user)
         notification_form = UserNotificationForm(instance=request.user)
-        api_key_create_form = APIKeyCreateForm()
-        api_key_revoke_form = APIKeyRevokeForm()
-        new_api_key = None
-        
-        # Get user's API keys
-        api_keys = APIKey.objects.filter(user=request.user).order_by('-created_at')
         
         # Handle form submissions
         if request.method == 'POST':
@@ -154,47 +188,12 @@ def SettingsView(request):
                     notification_form.save()
                     messages.success(request, 'Your notification preferences have been updated successfully.')
                     return redirect('user-settings')
-            
-            elif 'api_key_create' in request.POST:
-                api_key_create_form = APIKeyCreateForm(request.POST)
-                if api_key_create_form.is_valid():
-                    name = api_key_create_form.cleaned_data['name']
-                    expires_at = api_key_create_form.cleaned_data.get('expires_at')
-                    
-                    # Generate the API key
-                    api_key_obj = APIKey.generate_key(
-                        user=request.user,
-                        name=name,
-                        expires_at=expires_at
-                    )
-                    new_api_key = api_key_obj.key  # Store for display (shown only once)
-                    
-                    messages.success(request, f'API key "{name}" has been created successfully. Please copy it now - you won\'t be able to see it again!')
-                    # Reload API keys
-                    api_keys = APIKey.objects.filter(user=request.user).order_by('-created_at')
-            
-            elif 'api_key_revoke' in request.POST:
-                api_key_revoke_form = APIKeyRevokeForm(request.POST)
-                if api_key_revoke_form.is_valid():
-                    api_key_id = api_key_revoke_form.cleaned_data['api_key_id']
-                    try:
-                        api_key_obj = APIKey.objects.get(id=api_key_id, user=request.user)
-                        api_key_obj.revoke()
-                        messages.success(request, f'API key "{api_key_obj.name}" has been revoked successfully.')
-                        # Reload API keys
-                        api_keys = APIKey.objects.filter(user=request.user).order_by('-created_at')
-                    except APIKey.DoesNotExist:
-                        messages.error(request, 'API key not found or you do not have permission to revoke it.')
         
         context = {
             'user': request.user,
             'profile_form': profile_form,
             'settings_form': settings_form,
             'notification_form': notification_form,
-            'api_key_create_form': api_key_create_form,
-            'api_key_revoke_form': api_key_revoke_form,
-            'api_keys': api_keys,
-            'new_api_key': new_api_key,
         }
         return render(request, "user/settings.html", context)
     else:
@@ -411,7 +410,7 @@ class UsersUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
     pk_url_kwarg = 'user_id'
 
     def get_success_url(self):
-        return reverse_lazy('user-list')
+        return reverse_lazy('user-management')
 
     def test_func(self):
         # Allow access if user is superuser, has user.edit permission, or has Administrator role
@@ -450,13 +449,101 @@ class UsersUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
             form.add_error('is_superuser', _('You cannot remove your own superuser privileges.'))
             return self.form_invalid(form)
         
-        return super().form_valid(form)
+        response = super().form_valid(form)
+        if self.object.is_approved:
+            _ensure_verified_email_for_approved_user(self.object)
+        return response
 
 
-class UsersListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
+class SuperuserSetUserPasswordView(LoginRequiredMixin, UserPassesTestMixin, FormView):
+    form_class = SuperuserSetPasswordForm
+    template_name = 'user/admin_set_password.html'
+
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def dispatch(self, request, *args, **kwargs):
+        self.target_user = get_object_or_404(CustomUser, pk=kwargs['user_id'])
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['user'] = self.target_user
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['target_user'] = self.target_user
+        return context
+
+    def form_valid(self, form):
+        form.save()
+        messages.success(
+            self.request,
+            gettext('Password updated for %(username)s.') % {'username': self.target_user.username},
+        )
+        return redirect('user-management')
+
+
+class AdminUserDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    """Delete another user account (from user management / edit flow)."""
+
+    model = CustomUser
+    template_name = 'user/admin_confirm_delete_user.html'
+    pk_url_kwarg = 'user_id'
+    context_object_name = 'target_user'
+
+    def test_func(self):
+        return (
+            self.request.user.is_superuser
+            or self.request.user.has_role_permission('user.edit')
+            or (self.request.user.role and self.request.user.role.name == 'Administrator')
+        )
+
+    def get_success_url(self):
+        return reverse_lazy('user-management')
+
+    def get_object(self, queryset=None):
+        obj = super().get_object(queryset)
+        if obj.pk == self.request.user.pk:
+            raise PermissionDenied(
+                gettext(
+                    'You cannot delete your own account from this page. Use account settings instead.'
+                )
+            )
+        if obj.is_superuser and not self.request.user.is_superuser:
+            raise PermissionDenied(
+                gettext('Only superusers can delete another superuser account.')
+            )
+        return obj
+
+    def form_valid(self, form):
+        user_id = self.object.pk
+        username = self.object.username
+        try:
+            self.object.delete()
+        except ProtectedError:
+            messages.error(
+                self.request,
+                gettext(
+                    'Cannot delete user "%(name)s" while other data still references them '
+                    '(for example projects they own, memberships, or labeling data). '
+                    'Transfer project ownership, remove related records, or delete those projects first.'
+                )
+                % {'name': username},
+            )
+            return redirect('user-edit', user_id=user_id)
+        messages.success(
+            self.request,
+            gettext('User "%(name)s" has been deleted.') % {'name': username},
+        )
+        return redirect('user-management')
+
+
+class UserManagementView(LoginRequiredMixin, UserPassesTestMixin, ListView):
     model = get_user_model()
     context_object_name = 'users'
-    template_name = 'user/list.html'
+    template_name = 'user/management.html'
     paginate_by = 20
 
     def test_func(self):
@@ -468,8 +555,7 @@ class UsersListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
 
     def get_queryset(self):
         queryset = CustomUser.objects.select_related('role').all().order_by('username')
-        
-        # Filter by search query
+
         search_query = self.request.GET.get('search', '')
         if search_query:
             queryset = queryset.filter(
@@ -478,19 +564,17 @@ class UsersListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
                 Q(first_name__icontains=search_query) |
                 Q(last_name__icontains=search_query)
             )
-        
-        # Filter by role
+
         role_filter = self.request.GET.get('role', '')
         if role_filter:
             queryset = queryset.filter(role__name=role_filter)
-        
-        # Filter by status
+
         status_filter = self.request.GET.get('status', '')
         if status_filter == 'active':
             queryset = queryset.filter(is_active=True)
         elif status_filter == 'inactive':
             queryset = queryset.filter(is_active=False)
-        
+
         return queryset
 
     def get_context_data(self, **kwargs):
@@ -499,6 +583,14 @@ class UsersListView(LoginRequiredMixin, UserPassesTestMixin, ListView):
         context['search_query'] = self.request.GET.get('search', '')
         context['role_filter'] = self.request.GET.get('role', '')
         context['status_filter'] = self.request.GET.get('status', '')
+        User = get_user_model()
+        context['total_users'] = User.objects.count()
+        context['active_users'] = User.objects.filter(is_active=True).count()
+        context['inactive_users'] = User.objects.filter(is_active=False).count()
+        context['users_with_roles'] = User.objects.filter(role__isnull=False).count()
+        context['users_without_roles'] = User.objects.filter(role__isnull=True).count()
+        context['total_roles'] = Role.objects.count()
+        context['active_roles'] = Role.objects.filter(is_active=True).count()
         return context
 
 
@@ -506,7 +598,7 @@ class UserCreateView(LoginRequiredMixin, UserPassesTestMixin, CreateView):
     model = get_user_model()
     form_class = CustomUserCreationForm
     template_name = 'user/user_form.html'
-    success_url = reverse_lazy('user-list')
+    success_url = reverse_lazy('user-management')
 
     def test_func(self):
         # Allow access if user is superuser or has Administrator role
@@ -565,6 +657,7 @@ def approve_user(request, user_id):
     if request.method == 'POST':
         user.is_approved = True
         user.save()
+        _ensure_verified_email_for_approved_user(user)
         messages.success(
             request, 
             f'User {user.username} has been approved successfully.'
@@ -685,27 +778,6 @@ class RoleDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
         role = self.get_object()
         messages.success(request, f"Role '{role.name}' deleted successfully.")
         return super().delete(request, *args, **kwargs)
-
-
-@login_required
-def user_management_view(request):
-    # Allow access only if user is superuser
-    if not request.user.is_superuser:
-        raise PermissionDenied
-    """Comprehensive user management dashboard"""
-    User = get_user_model()
-    context = {
-        'total_users': User.objects.count(),
-        'active_users': User.objects.filter(is_active=True).count(),
-        'inactive_users': User.objects.filter(is_active=False).count(),
-        'users_with_roles': User.objects.filter(role__isnull=False).count(),
-        'users_without_roles': User.objects.filter(role__isnull=True).count(),
-        'total_roles': Role.objects.count(),
-        'active_roles': Role.objects.filter(is_active=True).count(),
-        'recent_users': User.objects.select_related('role').order_by('-date_joined')[:5],
-        'recent_roles': Role.objects.order_by('-created_at')[:5],
-    }
-    return render(request, 'user/management.html', context)
 
 
 class UserProfileView(LoginRequiredMixin, TemplateView):

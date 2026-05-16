@@ -1,4 +1,5 @@
 import io
+import json
 import zipfile
 
 from django.shortcuts import get_object_or_404
@@ -9,8 +10,10 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 from labeling.models import Annotation, AnnotationDraft, ImageAsset, LabelDataset, LabelSchema, Task, TaskLock
+from labeling.permissions import can_download_labeling_export
 from labeling.services.exporters import package as export_package
 from labeling.services import queue
+from labeling.services.task_visibility import user_can_access_task
 from projects.models import Project, ProjectMembership
 
 from .serializers import AnnotationSerializer, DraftSerializer, ImageAssetSerializer, LabelDatasetSerializer, TaskSerializer
@@ -67,17 +70,25 @@ class LabelDatasetDetail(generics.RetrieveUpdateDestroyAPIView):
         super().perform_destroy(instance)
 
 
+def _require_task_visible(user, task: Task) -> None:
+    if not user_can_access_task(user, task):
+        raise NotFound()
+
+
 class TaskList(generics.ListAPIView):
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         p = get_project_for_user(self.request.user, self.kwargs['project_pk'])
-        return (
+        from labeling.services.task_visibility import filter_tasks_for_user
+
+        qs = (
             Task.objects.filter(project=p)
             .select_related('image', 'schema', 'image__dataset')
             .order_by('inner_id')
         )
+        return filter_tasks_for_user(p, self.request.user, qs)
 
 
 class TaskRetrieve(generics.RetrieveAPIView):
@@ -92,6 +103,7 @@ class TaskRetrieve(generics.RetrieveAPIView):
         )
         if not task.project.is_accessible_by(self.request.user):
             raise NotFound()
+        _require_task_visible(self.request.user, task)
         return task
 
 
@@ -134,6 +146,7 @@ def task_lock(request, pk):
     p = task.project
     if not p.is_accessible_by(request.user) or not can_label_user(request.user, p):
         raise NotFound()
+    _require_task_visible(request.user, task)
     ok, _ = queue.acquire_lock(request.user, task)
     if not ok:
         return Response({'detail': 'Task locked by another user.'}, status=status.HTTP_409_CONFLICT)
@@ -147,6 +160,7 @@ def task_unlock(request, pk):
     task = get_object_or_404(Task, pk=pk)
     if not task.project.is_accessible_by(request.user):
         raise NotFound()
+    _require_task_visible(request.user, task)
     queue.release_lock(request.user, task)
     return Response({'ok': True})
 
@@ -158,6 +172,7 @@ def task_draft(request, pk):
     p = task.project
     if not p.is_accessible_by(request.user) or not can_label_user(request.user, p):
         raise PermissionDenied()
+    _require_task_visible(request.user, task)
     if request.method == 'GET':
         d, _ = AnnotationDraft.objects.get_or_create(
             task=task, user=request.user, defaults={'result': []}
@@ -183,6 +198,11 @@ def task_annotations(request, pk):
     if not p.is_accessible_by(request.user):
         raise NotFound()
     if request.method == 'GET':
+        if not (can_review_user(request.user, p) or _can_write_project(request.user, p)):
+            _require_task_visible(request.user, task)
+    else:
+        _require_task_visible(request.user, task)
+    if request.method == 'GET':
         qs = task.annotations.filter(was_cancelled=False)
         if not can_review_user(request.user, p) and not _can_write_project(request.user, p):
             qs = qs.filter(completed_by=request.user)
@@ -200,7 +220,6 @@ def task_annotations(request, pk):
         lead_time=request.data.get('lead_time'),
         ground_truth=bool(request.data.get('ground_truth', False)),
         status=Annotation.Status.SUBMITTED,
-        schema_version=task.schema.version,
     )
     ann.save()
     AnnotationDraft.objects.filter(task=task, user=request.user).delete()
@@ -214,16 +233,9 @@ def project_export(request, project_pk):
     from django.http import FileResponse
 
     p = get_project_for_user(request.user, project_pk)
-    m = p.get_membership(request.user)
-    u = request.user
-    is_owner = p.owner_id == u.id
-    is_rev = m and m.role in (
-        ProjectMembership.Role.ADMIN,
-        ProjectMembership.Role.REVIEWER,
-    )
-    if not (u.is_superuser or is_owner or is_rev):
+    if not can_download_labeling_export(request.user, p):
         raise PermissionDenied()
-    include = request.data.get('variants') or request.query_params.get('include') or 'coco,yolo,geojson'
+    include = request.data.get('variants') or request.query_params.get('include') or 'coco,yolo'
     include = [x.strip() for x in str(include).split(',') if x.strip()]
 
     buf = io.BytesIO()
@@ -250,10 +262,13 @@ def image_upload(request, project_pk, dataset_pk):
     if not f:
         return Response({'file': 'Required'}, status=400)
     img = ImageAsset.objects.create(dataset=ds, file=f)
-    schema = p.label_schemata.filter(is_active=True).order_by('-version').first()
+    schema = p.label_schemata.filter(is_active=True).order_by('-id').first()
     if not schema:
         schema = LabelSchema.objects.create(
-            project=p, version=1, config=LabelSchema.default_config(), is_active=True
+            project=p,
+            config=LabelSchema.default_config(),
+            is_active=True,
+            selected_for_labeling=True,
         )
     inner = queue.get_next_task_inner_id(p)
     t = Task.objects.create(
@@ -268,12 +283,52 @@ def image_upload(request, project_pk, dataset_pk):
     )
 
 
-@api_view(['GET'])
+@api_view(['POST'])
 @permission_classes([IsAuthenticated])
-def project_geojson(request, project_pk):
-    from labeling.services.exporters import geojson as gexp
+def dataset_import_masks(request, project_pk, dataset_pk):
+    """
+    Upload a ZIP of mask images (stem.png/tif) matching dataset image basenames.
+    Form fields: ``file`` (ZIP), ``mapping`` (JSON string: pixel class -> label_id),
+    optional ``background`` (comma ints), ``replace`` (truthy string).
+    """
     p = get_project_for_user(request.user, project_pk)
-    return Response(gexp.project_images_geojson(p))
+    if not _can_write_project(request.user, p):
+        raise PermissionDenied()
+    ds = get_object_or_404(LabelDataset, pk=dataset_pk, project=p)
+    zf = request.FILES.get('file')
+    if not zf:
+        return Response({'detail': 'file (application/zip) required'}, status=status.HTTP_400_BAD_REQUEST)
+    raw = request.POST.get('mapping')
+    if not raw:
+        return Response({'detail': 'mapping (JSON string) required'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        body = json.loads(raw)
+    except json.JSONDecodeError:
+        return Response({'detail': 'mapping must be valid JSON'}, status=status.HTTP_400_BAD_REQUEST)
+    if not isinstance(body, dict):
+        return Response({'detail': 'mapping must be a JSON object'}, status=status.HTTP_400_BAD_REQUEST)
+    from labeling.services.mask_to_polygons import parse_mapping_json
+
+    mapping = parse_mapping_json(body)
+    if not mapping:
+        return Response({'detail': 'mapping produced no pixel class keys'}, status=status.HTTP_400_BAD_REQUEST)
+    bg_raw = request.POST.get('background', '0')
+    try:
+        bg_vals = frozenset(int(x.strip()) for x in bg_raw.split(',') if x.strip() != '')
+    except ValueError:
+        return Response({'detail': 'invalid background'}, status=status.HTTP_400_BAD_REQUEST)
+    replace = str(request.POST.get('replace', '')).lower() in ('1', 'true', 'yes', 'on')
+    from labeling.services.mask_import import import_masks_from_zip
+
+    stats = import_masks_from_zip(
+        ds,
+        zf.read(),
+        mapping,
+        background_values=bg_vals,
+        replace=replace,
+        completed_by=request.user,
+    )
+    return Response(stats, status=status.HTTP_200_OK)
 
 
 @api_view(['PATCH'])

@@ -1,0 +1,113 @@
+{% extends "_base.html" %}
+{% load i18n %}
+{% load labeling_tags %}
+{% block title %}{% trans "Labeling setup" %} — {{ project.title }}{% endblock %}
+
+{% block navbar_trail %}
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <a class="nav-link" href="{% url 'projects:project_detail' project.pk %}">{{ project.title }}</a>
+</li>
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <span class="navbar-text text-white py-2">{% trans "Labeling setup" %}</span>
+</li>
+{% endblock %}
+
+{% block content %}
+<div class="container-lg mt-4 mb-5">
+  <h1 class="h3">{% trans "Labeling setup" %}</h1>
+  <p class="text-muted mb-1">{{ project.title }}</p>
+  <p class="mb-4 text-secondary">
+    {% blocktrans trimmed %}
+    Start from a template (task type and default labels), then refine tools and labels in the editor—similar to configuring a labeling interface in tools like Label Studio.
+    {% endblocktrans %}
+  </p>
+  <p class="small text-muted mb-4">
+    <a href="{% url 'labeling:dashboard' project.id %}">{% trans "Labeling dashboard" %}</a>
+    · <a href="{% url 'projects:project_detail' project.pk %}#label-datasets">{% trans "Project" %}</a>
+  </p>
+
+  {% if can_admin %}
+  {% for cat_title, templates in setup_template_groups %}
+  <h2 class="h5 mb-3">{{ cat_title }}</h2>
+  <div class="row row-cols-1 row-cols-md-2 row-cols-xl-3 g-3 mb-4">
+    {% for t in templates %}
+    <div class="col">
+      <div class="card h-100 shadow-sm border-0">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex align-items-start gap-3 mb-2">
+            <div class="rounded-3 bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width:3rem;height:3rem;">
+              <i class="bi bi-{{ t|cv_template_icon }} fs-4" aria-hidden="true"></i>
+            </div>
+            <div class="min-w-0">
+              <h3 class="h6 card-title mb-1">{{ t.title }}</h3>
+              <p class="card-text small text-muted mb-2">{{ t.description }}</p>
+              <div class="d-flex flex-wrap gap-1 mb-0">
+                {% for tool_id, tool_label in t.tool_badges %}
+                <span class="badge rounded-pill text-bg-light border fw-normal" title="{{ tool_id }}">{{ tool_label }}</span>
+                {% endfor %}
+              </div>
+            </div>
+          </div>
+          <form method="post" action="{% url 'labeling:schema_apply_template' project.id %}" class="mt-auto pt-2">
+            {% csrf_token %}
+            <input type="hidden" name="slug" value="{{ t.slug }}">
+            <button type="submit" class="btn btn-primary btn-sm w-100">{% trans "Use template" %}</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <h2 class="h5 mb-3">{% trans "Current setup" %}</h2>
+  <div class="table-responsive">
+    <table class="table table-sm align-middle">
+      <thead>
+        <tr>
+          <th>{% trans "Template" %}</th>
+          <th>{% trans "Labeling list" %}</th>
+          <th>{% trans "Labels (preview)" %}</th>
+          <th>{% trans "Tasks" %}</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in schemata %}
+        <tr>
+          <td class="small text-muted">{% if s.setup_template_title %}{{ s.setup_template_title }}{% else %}—{% endif %}</td>
+          <td>
+            {% if s.selected_for_labeling %}
+            <span class="badge bg-info text-dark">{% trans "Shown" %}</span>
+            {% else %}
+            <span class="badge bg-secondary">{% trans "Hidden" %}</span>
+            {% endif %}
+            {% if can_admin %}
+            <form method="post" action="{% url 'labeling:schema_toggle_labeling' project.id s.pk %}" class="d-inline ms-1">{% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-link p-0">{% trans "Toggle" %}</button>
+            </form>
+            {% endif %}
+          </td>
+          <td class="small text-muted">{{ s.label_preview|default:"—" }}</td>
+          <td>{{ s.num_tasks }}</td>
+          <td>
+            {% if can_admin %}
+            <a class="btn btn-sm btn-outline-primary" href="{% url 'labeling:schema_edit' project.id %}">{% trans "Edit setup" %}</a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="text-muted">{% trans "No labeling setup yet. Use a template above (admin)." %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

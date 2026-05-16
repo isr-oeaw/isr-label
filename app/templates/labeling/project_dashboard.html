@@ -1,23 +1,177 @@
 {% extends "_base.html" %}
 {% load i18n %}
 {% block title %}{% trans "Labeling" %} — {{ project.title }}{% endblock %}
+
+{% block navbar_trail %}
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <a class="nav-link" href="{% url 'projects:project_detail' project.pk %}">{{ project.title }}</a>
+</li>
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <span class="navbar-text text-white fw-semibold mb-0 py-2">{% trans "Labeling" %}</span>
+</li>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
   <h1 class="h3">{{ project.title }} — {% trans "Labeling" %}</h1>
-  <p class="text-muted">{% trans "Progress" %}: {{ num_done }} / {{ num_tasks }} {% trans "tasks done" %}</p>
-  <div class="d-flex flex-wrap gap-2 mb-4">
-    <a class="btn btn-primary" href="{% url 'labeling:next' project.id %}">{% trans "Label next" %}</a>
-    <a class="btn btn-outline-primary" href="{% url 'labeling:dataset_list' project.id %}">{% trans "Datasets" %}</a>
-    <a class="btn btn-outline-primary" href="{% url 'labeling:map' project.id %}">{% trans "Map" %}</a>
-    {% if can_admin %}
-    <a class="btn btn-outline-secondary" href="{% url 'labeling:schema' project.id %}">{% trans "Label schema" %}</a>
-    <form class="d-inline" method="post" action="{% url 'labeling_api:project_export' project_pk=project.id %}">
-      {% csrf_token %}
-      <input type="hidden" name="variants" value="coco,yolo,geojson">
-      <button class="btn btn-outline-success" type="submit">{% trans "Export ZIP" %}</button>
-    </form>
+
+  {% if labeling_team_progress %}
+  <section class="mb-4" id="labeling-team-progress" aria-labelledby="labeling-team-progress-heading">
+    <h2 id="labeling-team-progress-heading" class="h5">{% trans "Progress by team member" %}</h2>
+    <div class="table-responsive border rounded">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th scope="col">{% trans "User" %}</th>
+            <th scope="col" style="min-width: 10rem;">{% trans "Progress" %}</th>
+            <th scope="col" class="text-end">{% trans "Submitted" %}</th>
+            <th scope="col" class="text-end">{% trans "Pending in queue" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in labeling_team_progress %}
+          <tr>
+            <td>{{ row.user.username }}{% if row.user.get_full_name %} <span class="text-muted">({{ row.user.get_full_name }})</span>{% endif %}</td>
+            <td>
+              {% if row.visible_total %}
+              <div class="d-flex align-items-center gap-2 flex-wrap">
+                <div class="progress flex-grow-1" style="min-width: 7rem; height: 1.1rem;" role="progressbar"
+                     aria-valuenow="{{ row.progress_pct }}"
+                     aria-valuemin="0"
+                     aria-valuemax="100">
+                  <div class="progress-bar" style="width: {{ row.progress_pct }}%;"></div>
+                </div>
+                <span class="small text-muted text-nowrap">{{ row.completed_tasks }} / {{ row.visible_total }}</span>
+              </div>
+              {% else %}
+              <span class="text-muted small">{% trans "No tasks" %}</span>
+              {% endif %}
+            </td>
+            <td class="text-end">{{ row.submitted }}</td>
+            <td class="text-end">{{ row.pending }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
+  <section id="labeling-my-tasks" class="mb-4" aria-labelledby="labeling-my-tasks-heading">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+      <h2 id="labeling-my-tasks-heading" class="h5 mb-0">{% trans "My tasks" %}</h2>
+      <a class="btn btn-primary" href="{% url 'labeling:next' project.id %}">{% trans "Label next" %}</a>
+    </div>
+    {% if num_tasks %}
+    <div class="mb-3" id="labeling-my-tasks-progress" role="region" aria-labelledby="labeling-my-tasks-progress-label">
+      <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-1">
+        <span id="labeling-my-tasks-progress-label" class="small text-muted">{% trans "Your progress in this project" %}</span>
+        <span class="small text-muted" aria-live="polite"><strong class="text-body">{{ num_done }}</strong> / {{ num_tasks }} {% trans "tasks done" %}</span>
+      </div>
+      <div class="progress" style="height: 1.25rem;" role="progressbar"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ my_tasks_progress_pct }}"
+           aria-labelledby="labeling-my-tasks-progress-label"
+           aria-label="{% trans 'Your labeling progress for this project' %}">
+        <div class="progress-bar" style="width: {{ my_tasks_progress_pct }}%;"></div>
+      </div>
+    </div>
     {% endif %}
-  </div>
+    {% if dashboard_my_tasks %}
+    <p class="small text-muted mb-2">
+      {% if dashboard_my_tasks_truncated %}
+      {% blocktrans with shown=dashboard_my_tasks|length total=num_tasks %}Showing the first {{ shown }} of {{ total }} tasks (pending first, then done).{% endblocktrans %}
+      {% else %}
+      {% trans "Pending tasks are listed first, then completed ones." %}
+      {% endif %}
+    </p>
+    <div class="table-responsive border rounded">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th scope="col">{% trans "Status" %}</th>
+            <th scope="col">{% trans "Task" %}</th>
+            <th scope="col">{% trans "Inner id" %}</th>
+            <th scope="col">{% trans "Image" %}</th>
+            <th scope="col" class="text-end">{% trans "Action" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task in dashboard_my_tasks %}
+          <tr>
+            <td>
+              {% if task.is_labeled %}
+              <span class="badge text-bg-success">{% trans "Done" %}</span>
+              {% else %}
+              <span class="badge text-bg-secondary">{% trans "Pending" %}</span>
+              {% endif %}
+            </td>
+            <td><span class="text-muted">#{{ task.pk }}</span></td>
+            <td>{{ task.inner_id }}</td>
+            <td class="text-truncate" style="max-width: 14rem;" title="{{ task.display_filename }}">{{ task.display_filename|default:"—" }}</td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'labeling:task' project.id task.id %}">{% trans "Open" %}</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="text-muted mb-0">{% trans "No label tasks yet. Create datasets and images on the project page, then generate tasks." %}</p>
+    {% endif %}
+  </section>
+
+  {% if show_labeling_team_tasks %}
+  <section id="labeling-team-tasks" class="mb-4" aria-labelledby="labeling-team-tasks-heading">
+    <h2 id="labeling-team-tasks-heading" class="h5">{% trans "Team tasks" %}</h2>
+    <p class="small text-muted mb-2">
+      {% if dashboard_team_tasks_truncated %}
+      {% blocktrans with shown=dashboard_team_tasks|length total=num_team_tasks %}Showing the first {{ shown }} of {{ total }} tasks (pending first, then done).{% endblocktrans %}
+      {% else %}
+      {% trans "Pending tasks are listed first, then completed ones." %}
+      {% endif %}
+    </p>
+    <div class="table-responsive border rounded">
+      <table class="table table-sm table-hover mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th scope="col">{% trans "Status" %}</th>
+            <th scope="col">{% trans "Task" %}</th>
+            <th scope="col">{% trans "Inner id" %}</th>
+            <th scope="col">{% trans "Image" %}</th>
+            <th scope="col" class="text-end">{% trans "Action" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for task in dashboard_team_tasks %}
+          <tr>
+            <td>
+              {% if task.is_labeled %}
+              <span class="badge text-bg-success">{% trans "Done" %}</span>
+              {% else %}
+              <span class="badge text-bg-secondary">{% trans "Pending" %}</span>
+              {% endif %}
+            </td>
+            <td><span class="text-muted">#{{ task.pk }}</span></td>
+            <td>{{ task.inner_id }}</td>
+            <td class="text-truncate" style="max-width: 14rem;" title="{{ task.display_filename }}">{{ task.display_filename|default:"—" }}</td>
+            <td class="text-end">
+              <a class="btn btn-sm btn-outline-primary" href="{% url 'labeling:task' project.id task.id %}">{% trans "Open" %}</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+  {% endif %}
+
   <a href="{% url 'projects:project_detail' project.pk %}">← {% trans "Back to project" %}</a>
 </div>
 {% endblock %}

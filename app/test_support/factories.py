@@ -56,7 +56,6 @@ def create_labeling_basics(project: Project):
     """LabelSchema + LabelDataset (no images)."""
     schema = LabelSchema.objects.create(
         project=project,
-        version=1,
         config=LabelSchema.default_config(),
         is_active=True,
     )

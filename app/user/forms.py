@@ -1,9 +1,8 @@
 from django import forms
-from django.contrib.auth.forms import UserCreationForm, UserChangeForm
+from django.contrib.auth.forms import UserCreationForm, UserChangeForm, SetPasswordForm
 from django.contrib.auth import get_user_model
 from django.utils.translation import gettext_lazy as _
-from django.utils import timezone
-from .models import Role, APIKey
+from .models import Role
 
 CustomUser = get_user_model()
 
@@ -103,6 +102,17 @@ class CustomUserEditForm(UserChangeForm):
             self.add_error('is_staff', _('Superusers must also be staff members. This has been automatically set.'))
         
         return cleaned_data
+
+
+class SuperuserSetPasswordForm(SetPasswordForm):
+    """Password reset for another account (superuser-only view)."""
+
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(user, *args, **kwargs)
+        for _name, field in self.fields.items():
+            field.widget.attrs.setdefault('class', 'form-control')
+            if isinstance(field.widget, forms.PasswordInput):
+                field.widget.attrs.setdefault('autocomplete', 'new-password')
 
 
 class UserProfileForm(forms.ModelForm):
@@ -268,49 +278,4 @@ class RoleFilterForm(forms.Form):
         choices=[('', 'All'), ('True', 'Active'), ('False', 'Inactive')],
         required=False,
         initial=''
-    )
-
-
-class APIKeyCreateForm(forms.Form):
-    """Form for creating a new API key"""
-    name = forms.CharField(
-        max_length=100,
-        required=True,
-        label=_('Name'),
-        help_text=_('A descriptive name for this API key (e.g., "My Script", "Production API")'),
-        widget=forms.TextInput(attrs={
-            'class': 'form-control',
-            'placeholder': _('e.g., My Script, Production API')
-        })
-    )
-    expires_at = forms.DateTimeField(
-        required=False,
-        label=_('Expiration Date (Optional)'),
-        help_text=_('Optional: Set an expiration date for this API key. Leave empty for no expiration.'),
-        widget=forms.DateTimeInput(attrs={
-            'class': 'form-control',
-            'type': 'datetime-local'
-        })
-    )
-    
-    def clean_expires_at(self):
-        """Validate that expiration date is in the future"""
-        expires_at = self.cleaned_data.get('expires_at')
-        if expires_at and expires_at <= timezone.now():
-            raise forms.ValidationError(_('Expiration date must be in the future.'))
-        return expires_at
-
-
-class APIKeyRevokeForm(forms.Form):
-    """Form for revoking an API key"""
-    api_key_id = forms.IntegerField(
-        required=True,
-        widget=forms.HiddenInput()
-    )
-    confirm = forms.BooleanField(
-        required=True,
-        label=_('I understand that this action cannot be undone'),
-        widget=forms.CheckboxInput(attrs={
-            'class': 'form-check-input'
-        })
     )

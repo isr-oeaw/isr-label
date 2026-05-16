@@ -40,10 +40,10 @@ class UserAuthPagesTests(TestCase):
         r = self.client.get(reverse("data-export"))
         self.assertEqual(r.status_code, 302)
 
-    def test_user_list_requires_staff(self):
+    def test_user_management_requires_permission(self):
         u = User.objects.create_user("ul", "ul@t.local", "p")
         self.client.login(username="ul", password="p")
-        r = self.client.get(reverse("user-list"))
+        r = self.client.get(reverse("user-management"))
         self.assertIn(r.status_code, (302, 403))
 
     def test_user_management_superuser_200(self):
@@ -51,6 +51,52 @@ class UserAuthPagesTests(TestCase):
         self.client.login(username="ums", password="p")
         r = self.client.get(reverse("user-management"))
         self.assertEqual(r.status_code, 200)
+
+    def test_user_management_administrator_200(self):
+        ad = User.objects.create_user("uma", "uma@t.local", "p")
+        r = Role.objects.create(name="Administrator", is_active=True, permissions=[])
+        ad.role = r
+        ad.save()
+        self.client.login(username="uma", password="p")
+        r = self.client.get(reverse("user-management"))
+        self.assertEqual(r.status_code, 200)
+
+    def test_superuser_set_password_get_200(self):
+        su = User.objects.create_superuser("supw", "supw@t.local", "p")
+        target = User.objects.create_user("tgt", "tgt@t.local", "old-pass-xyz")
+        self.client.login(username="supw", password="p")
+        url = reverse("user-admin-password", kwargs={"user_id": target.pk})
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 200)
+        self.assertTemplateUsed(r, "user/admin_set_password.html")
+
+    def test_administrator_set_password_forbidden(self):
+        ad = User.objects.create_user("admnpw", "admnpw@t.local", "p")
+        r = Role.objects.create(name="Administrator", is_active=True, permissions=[])
+        ad.role = r
+        ad.save()
+        target = User.objects.create_user("tgt2", "tgt2@t.local", "p")
+        self.client.login(username="admnpw", password="p")
+        url = reverse("user-admin-password", kwargs={"user_id": target.pk})
+        r = self.client.get(url)
+        self.assertEqual(r.status_code, 403)
+
+    def test_superuser_set_password_post_updates_login(self):
+        su = User.objects.create_superuser("supw2", "supw2@t.local", "p")
+        target = User.objects.create_user("tgt3", "tgt3@t.local", "old-secret")
+        self.client.login(username="supw2", password="p")
+        url = reverse("user-admin-password", kwargs={"user_id": target.pk})
+        r = self.client.post(
+            url,
+            {
+                "new_password1": "new-secret-99!",
+                "new_password2": "new-secret-99!",
+            },
+        )
+        self.assertEqual(r.status_code, 302)
+        self.assertEqual(r.url, reverse("user-management"))
+        self.client.logout()
+        self.assertTrue(self.client.login(username="tgt3", password="new-secret-99!"))
 
     def test_user_create_administrator_200(self):
         ad = User.objects.create_user("ued", "ued@t.local", "p")

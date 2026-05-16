@@ -8,30 +8,28 @@ class UserLanguageMiddleware:
     """
     Middleware to activate user's preferred language
     """
-    
+
     def __init__(self, get_response):
         self.get_response = get_response
 
-    def __call__(self, request):
-        # Process request
+    def process_request(self, request):
         if request.user.is_authenticated and hasattr(request.user, 'language') and request.user.language:
-            # Activate the user's preferred language
             translation.activate(request.user.language)
             request.LANGUAGE_CODE = request.user.language
         else:
-            # For anonymous users or users without language preference, use current language
             current_language = translation.get_language()
             translation.activate(current_language)
-            if request.user.is_authenticated:
-                request.LANGUAGE_CODE = current_language
+        return None
 
-        response = self.get_response(request)
-        
-        # Process response
+    def process_response(self, request, response):
         if hasattr(request, 'LANGUAGE_CODE'):
             response['Content-Language'] = request.LANGUAGE_CODE
-        
         return response
+
+    def __call__(self, request):
+        self.process_request(request)
+        response = self.get_response(request)
+        return self.process_response(request, response)
 
 
 class FirstLoginMiddleware:

@@ -1,8 +1,25 @@
 {% extends "_base.html" %}
 {% load i18n %}
 {% block title %}{% trans "Upload" %} — {{ dataset.name }}{% endblock %}
+
+{% block navbar_trail %}
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <a class="nav-link" href="{% url 'projects:project_detail' project.id %}">{{ project.title }}</a>
+</li>
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <span class="navbar-text text-white fw-semibold mb-0 py-2">{% trans "Upload" %} — {{ dataset.name }}</span>
+</li>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4" style="max-width: 560px;">
+  <p class="mb-3"><a href="{% url 'projects:project_detail' project.id %}#label-datasets">← {% trans "Back to project" %}</a></p>
   <h1 class="h4">{% trans "Upload images" %}</h1>
   <p class="text-muted">{{ dataset.name }}</p>
   <form method="post" enctype="multipart/form-data">{% csrf_token %}

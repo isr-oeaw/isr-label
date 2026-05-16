@@ -18,6 +18,23 @@ class LabelDataset(models.Model):
     )
     name = models.CharField(max_length=200, verbose_name=_('Name'))
     description = models.TextField(blank=True, verbose_name=_('Description'))
+    assigned_users = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='assigned_label_datasets',
+        blank=True,
+        verbose_name=_('Assigned users'),
+        help_text=_(
+            'If empty along with groups, all project labelers may work on this dataset. '
+            'Otherwise only listed users (or members of assigned groups) see these tasks.'
+        ),
+    )
+    assigned_groups = models.ManyToManyField(
+        'auth.Group',
+        related_name='assigned_label_datasets',
+        blank=True,
+        verbose_name=_('Assigned groups'),
+        help_text=_('Site-wide Django groups; members may label this dataset when restrictions apply.'),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -38,19 +55,26 @@ class LabelSchema(models.Model):
         related_name='label_schemata',
         verbose_name=_('Project'),
     )
-    version = models.PositiveIntegerField(default=1, verbose_name=_('Version'))
     config = models.JSONField(default=dict, blank=True, verbose_name=_('Configuration'))
     is_active = models.BooleanField(default=True, db_index=True, verbose_name=_('Active'))
+    selected_for_labeling = models.BooleanField(
+        default=True,
+        db_index=True,
+        verbose_name=_('Show in labeling sidebar'),
+        help_text=_('If enabled, this schema appears in the project labeling list and sidebar.'),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-version', '-id']
-        unique_together = [('project', 'version')]
+        ordering = ['-id']
         verbose_name = _('Label schema')
         verbose_name_plural = _('Label schemata')
+        constraints = [
+            models.UniqueConstraint(fields=['project'], name='labeling_labelschema_project_uniq'),
+        ]
 
     def __str__(self):
-        return f'{self.project_id} v{self.version}'
+        return f'{self.project_id}: label schema #{self.pk}'
 
     @staticmethod
     def default_config():
@@ -241,7 +265,6 @@ class Annotation(models.Model):
         default=Status.SUBMITTED,
         db_index=True,
     )
-    schema_version = models.PositiveIntegerField(default=1)
     parent_annotation = models.ForeignKey(
         'self',
         null=True,

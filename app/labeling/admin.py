@@ -13,8 +13,8 @@ class LabelDatasetAdmin(admin.ModelAdmin):
 
 @admin.register(LabelSchema)
 class LabelSchemaAdmin(admin.ModelAdmin):
-    list_display = ['id', 'project', 'version', 'is_active', 'created_at']
-    list_filter = ['is_active', 'project']
+    list_display = ['id', 'project', 'is_active', 'selected_for_labeling', 'created_at']
+    list_filter = ['is_active', 'selected_for_labeling', 'project']
 
 
 class ImageAssetInline(admin.TabularInline):

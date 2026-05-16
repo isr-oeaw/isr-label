@@ -1,4 +1,4 @@
-# Geospatial (EXIF + PostGIS + Leaflet)
+# Geospatial (EXIF + PostGIS)
 
 ## PostGIS
 
@@ -15,15 +15,13 @@
 - GPS IFD → convert DMS to decimal degrees, build `Point(lon, lat, srid=4326)`.
 - Store full raw EXIF subset in `exif` JSON (optional) for audit.
 
-## Leaflet
+## Coordinates and ZIP export
 
-- `django-leaflet` in admin/forms; for front-end, include Leaflet from CDN in `map.html` with `L.map`, markers from `/api/v1/.../images/?has_location=1` or a dedicated GeoJSON view.
-
-## Elevation
+- **`ImageAsset.location`** stores WGS84 points when EXIF/GPS is present; annotation JSON stays normalized in image space.
+- **ZIP export** (`project_export` / download) includes **COCO** and **YOLO** only—no GeoJSON bundle.
 
 - Not in scope; optional `altitude` from EXIF if present.
 
 ## Coordinate normalization
 
-- **Image annotation JSON** is always **normalized 0-1 in image space**, independent of map.
-- **GeoJSON export** can add image `location` as Point geometry in WGS84 for each asset.
+- **Image annotation JSON** is always **normalized 0-1 in image space**, independent of map coordinates on the asset.

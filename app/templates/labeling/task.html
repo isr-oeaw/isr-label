@@ -1,26 +1,182 @@
 {% extends "_base.html" %}
 {% load i18n static %}
 {% block title %}{% trans "Label task" %}{% endblock %}
+
+{% block navbar_trail %}
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <a class="nav-link" href="{% url 'projects:project_detail' project.pk %}">{{ project.title }}</a>
+</li>
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <a class="nav-link" href="{% url 'labeling:dashboard' project.id %}">{% trans "Labeling" %}</a>
+</li>
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <span class="navbar-text text-white fw-semibold mb-0 py-2">{% trans "Task" %} #{{ task.id }}</span>
+</li>
+{% endblock %}
+
 {% block content %}
-<div class="container-fluid mt-2">
-  <div class="d-flex flex-wrap align-items-center gap-2 mb-2">
-    <a href="{% url 'labeling:dashboard' project.id %}">← {% trans "Labeling" %}</a>
+<style>
+  .labeling-page {
+    display: flex;
+    flex-direction: column;
+    min-height: calc(100vh - 9rem);
+    margin-top: 0.5rem;
+  }
+  .labeling-workspace-row {
+    display: flex;
+    flex: 1 1 auto;
+    min-height: 0;
+    align-items: stretch;
+  }
+  #label-stage-wrapper {
+    position: relative;
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 280px;
+  }
+  #label-stage {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    touch-action: none;
+  }
+  .labeling-sidebar {
+    width: 300px;
+    flex-shrink: 0;
+    overflow-y: auto;
+    max-height: calc(100vh - 8rem);
+  }
+  .labeling-sidebar-label .label-swatch {
+    width: 0.75rem;
+    height: 0.75rem;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+</style>
+<div class="container-fluid labeling-page labeling-workspace d-flex flex-column px-2 pb-2">
+  <div class="d-flex flex-wrap align-items-center gap-2 py-2 border-bottom flex-shrink-0">
+    <a href="{% url 'labeling:dashboard' project.id %}">← {% trans "Back to labeling" %}</a>
+    {% if my_labeling_num_tasks %}
+    <div class="d-flex align-items-center gap-2 ms-1 flex-grow-1" style="min-width: 10rem; max-width: 24rem;" role="region" aria-label="{% trans 'Your task queue progress' %}">
+      <div class="progress flex-grow-1 mb-0" style="height: 0.65rem;" role="progressbar"
+           aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ my_labeling_progress_pct }}">
+        <div class="progress-bar" style="width: {{ my_labeling_progress_pct }}%;"></div>
+      </div>
+      <span class="small text-muted text-nowrap">{{ my_labeling_num_done }}/{{ my_labeling_num_tasks }}</span>
+    </div>
+    {% endif %}
     <span class="text-muted" id="label-status">{% trans "Loading" %}…</span>
+    {% if image_filename %}
+    <span class="text-truncate" title="{{ image_filename }}"><strong>{{ image_filename }}</strong></span>
+    {% endif %}
+    <span class="text-muted small d-none d-md-inline">{% trans "Task" %} #{{ task.id }}</span>
+    {% if labeling_instructions_html %}
+    <button type="button" class="btn btn-sm btn-outline-secondary ms-auto" data-bs-toggle="modal" data-bs-target="#labelingInstructionsModal">{% trans "Instructions" %}</button>
+    {% endif %}
   </div>
-  <div class="row g-0">
-    <div class="col-12 col-lg-2 border-end p-2 small">{% trans "Task" %} #{{ task.id }} · {% trans "inner" %} {{ task.inner_id }}</div>
-    <div class="col-12 col-lg-8 p-1">
-      <div id="label-stage" class="border bg-dark"></div>
+
+  <div class="labeling-workspace-row flex-grow-1 mt-2">
+    <div id="label-stage-wrapper" class="border rounded-start border-end-0 bg-dark">
+      <div id="label-stage"></div>
     </div>
-    <div class="col-12 col-lg-2 border-start p-2">
-      <button type="button" class="btn btn-sm btn-primary w-100 mb-1" id="btn-add-rect">{% trans "Add box" %}</button>
-      <p class="small text-muted">{% trans "V select · B not wired in this MVP layer" %}</p>
+    <aside class="labeling-sidebar border border-start rounded-end bg-body p-3 small">
+      <section class="mb-3">
+        <h2 class="h6 text-uppercase text-muted mb-2">{% trans "Labels" %}</h2>
+        {% if schema_labels %}
+        <div class="d-flex flex-column gap-1" id="labeling-label-list" role="group" aria-label="{% trans 'Labels' %}">
+          {% for lab in schema_labels %}
+          <button type="button"
+            class="btn btn-sm btn-outline-secondary text-start d-flex align-items-center gap-2 labeling-sidebar-label w-100 {% if forloop.first %}active{% endif %}"
+            data-label-id="{{ lab.id }}"
+            data-label-color="{{ lab.color|default:'#e74c3c' }}"
+            data-label-hotkey="{{ lab.hotkey|default:'' }}">
+            <span class="label-swatch border" style="background-color: {{ lab.color|default:'#e74c3c' }}"></span>
+            <span class="text-truncate">{{ lab.name }}</span>
+            {% if lab.hotkey %}<kbd class="ms-auto">{{ lab.hotkey }}</kbd>{% endif %}
+          </button>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">{% trans "No labels in schema." %}</p>
+        {% endif %}
+      </section>
+
+      <section class="mb-3">
+        <h2 class="h6 text-uppercase text-muted mb-2">{% trans "Tools" %}</h2>
+        <div class="d-flex flex-column gap-2">
+          {% for tool in schema_tools %}
+            {% if tool == 'rect' %}
+            <button type="button" class="btn btn-sm btn-primary w-100 d-flex align-items-center gap-2" id="btn-add-rect">
+              <i class="bi bi-bounding-box" aria-hidden="true"></i>
+              <span>{% trans "Bounding box" %}</span>
+            </button>
+            {% elif tool == 'classification' %}
+            <button type="button" class="btn btn-sm btn-outline-secondary w-100 d-flex align-items-center gap-2" disabled title="{% trans 'Not available in this version.' %}">
+              <i class="bi bi-bookmarks" aria-hidden="true"></i>
+              <span>{% trans "Image classification (whole image)" %}</span>
+            </button>
+            {% elif tool == 'polygon' %}
+            <button type="button" class="btn btn-sm btn-outline-secondary w-100 d-flex align-items-center gap-2" disabled title="{% trans 'Not available in this version.' %}">
+              <i class="bi bi-pentagon" aria-hidden="true"></i>
+              <span>{% trans "Polygon / region" %}</span>
+            </button>
+            {% elif tool == 'point' %}
+            <button type="button" class="btn btn-sm btn-outline-secondary w-100 d-flex align-items-center gap-2" disabled title="{% trans 'Not available in this version.' %}">
+              <i class="bi bi-geo-alt" aria-hidden="true"></i>
+              <span>{% trans "Point / keypoint" %}</span>
+            </button>
+            {% else %}
+            <button type="button" class="btn btn-sm btn-outline-secondary w-100" disabled title="{% trans 'Not available in this version.' %}">{{ tool }}</button>
+            {% endif %}
+          {% empty %}
+            <button type="button" class="btn btn-sm btn-primary w-100 d-flex align-items-center gap-2" id="btn-add-rect">
+              <i class="bi bi-bounding-box" aria-hidden="true"></i>
+              <span>{% trans "Bounding box" %}</span>
+            </button>
+          {% endfor %}
+        </div>
+      </section>
+
+      <p class="text-muted mb-3">
+        {% trans "Draw a box on the image with the mouse (or drag on touch). The highlighted label is used." %}
+        {% trans "Shortcuts:" %} <kbd>V</kbd> {% trans "select" %},
+        <kbd>1</kbd>–<kbd>9</kbd> {% trans "labels" %},
+        <kbd>Delete</kbd> / <kbd>Backspace</kbd> {% trans "remove selected box" %}
+      </p>
+
+      <div class="d-grid gap-2 mt-auto pt-2 border-top labeling-sidebar-actions">
+        <button type="button" class="btn btn-success" id="btn-submit">{% trans "Submit" %}</button>
+        <a class="btn btn-outline-secondary" href="{% url 'labeling:next' project.id %}">{% trans "Skip / Next" %}</a>
+      </div>
+    </aside>
+  </div>
+
+  {% if labeling_instructions_html %}
+  <div class="modal fade" id="labelingInstructionsModal" tabindex="-1" aria-labelledby="labelingInstructionsTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title h5" id="labelingInstructionsTitle">{% trans "Labeling instructions" %}</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% trans 'Close' %}"></button>
+        </div>
+        <div class="modal-body labeling-instructions-body">
+          {{ labeling_instructions_html|safe }}
+        </div>
+      </div>
     </div>
   </div>
-  <div class="p-2">
-    <button type="button" class="btn btn-success" id="btn-submit">{% trans "Submit" %}</button>
-    <a class="btn btn-outline-secondary" href="{% url 'labeling:next' project.id %}">{% trans "Skip / Next" %}</a>
-  </div>
+  {% endif %}
   <input type="hidden" id="next-url" value="{% url 'labeling:next' project.id %}">
 </div>
 {% endblock %}

@@ -39,7 +39,7 @@ class ProjectModelTests(TestCase):
 class ProjectViewSmokeTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            username="u1", email="u1@ex.com", password="p"
+            username="u1", email="u1@ex.com", password="p", is_staff=True
         )
         self.client.login(username="u1", password="p")
         # Editor role: create is restricted to Editor/Admin site roles — use superuser for create

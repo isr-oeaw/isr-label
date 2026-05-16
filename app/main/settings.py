@@ -61,7 +61,6 @@ INSTALLED_APPS = [
     'django_filters',
     'drf_spectacular',
     'easy_thumbnails',
-    'leaflet',
 ]
 
 MIDDLEWARE = [
@@ -209,13 +208,12 @@ SITE_ID = 1
 AUTHENTICATION_BACKENDS = [
     'django.contrib.auth.backends.ModelBackend',
     'allauth.account.auth_backends.AuthenticationBackend',
-    'user.authentication.APIKeyBackend',
 ]
 
 # Allauth settings
 ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_RATE_LIMITS = {
     'login_failed': '5/5m',
 }
@@ -243,9 +241,7 @@ SERVER_EMAIL = os.environ.get('SERVER_EMAIL', DEFAULT_FROM_EMAIL)
 # Email timeout settings
 EMAIL_TIMEOUT = 30
 
-# Allauth email settings
-ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
-ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
+# Allauth: signup email confirmation disabled (password reset still uses email when configured)
 ACCOUNT_EMAIL_CONFIRMATION_EXPIRE_DAYS = 7
 # DB-backed keys (64 safe chars); HMAC tokens can include =/+ and fail in e-mail or mail clients
 ACCOUNT_EMAIL_CONFIRMATION_HMAC = False
@@ -302,17 +298,6 @@ THUMBNAIL_ALIASES = {
 }
 THUMBNAIL_NAMER = 'easy_thumbnails.namers.hashed_namer'
 THUMBNAIL_PREFIX = 'thumbs/'
-
-# django-leaflet
-LEAFLET_CONFIG = {
-    'DEFAULT_CENTER': (47.5, 14.0),
-    'DEFAULT_ZOOM': 6,
-    'MIN_ZOOM': 2,
-    'MAX_ZOOM': 18,
-    'TILES': 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    'ATTRIBUTION': '© OpenStreetMap contributors',
-    'RESET_VIEW': False,
-}
 
 # Site settings
 SITE_NAME = os.environ.get('SITE_NAME', 'ISR Label')

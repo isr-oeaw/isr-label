@@ -15,12 +15,12 @@
                 <div>
                     <h1 class="h2 mb-1">
                         <i class="bi bi-folder me-2"></i>
-                        {% trans "Research Projects" %}
+                        {% trans "Projects" %}
                     </h1>
                     <p class="text-muted">{% trans "Manage and explore research projects and their associated datasets" %}</p>
                 </div>
                 <div>
-                    {% if user.is_superuser or user.role.name == 'Editor' or user.role.name == 'Administrator' %}
+                    {% if user.is_superuser or user.role and user.role.name == 'Editor' or user.role and user.role.name == 'Administrator' %}
                         <a href="{% url 'projects:project_create' %}" class="btn btn-primary">
                             <i class="bi bi-plus-circle me-2"></i>
                             {% trans "Add Project" %}
@@ -118,7 +118,7 @@
                                                 <a href="{% url 'projects:project_detail' project.pk %}" class="btn btn-outline-primary" title="{% trans 'View' %}">
                                                     <i class="bi bi-eye"></i>
                                                 </a>
-                                                {% if project.owner == user or project|is_project_member:user or user.is_superuser %}
+                                                {% if project.owner == user or user.is_superuser %}
                                                     <a href="{% url 'projects:project_edit' project.pk %}" class="btn btn-outline-secondary" title="{% trans 'Edit' %}">
                                                         <i class="bi bi-pencil"></i>
                                                     </a>
@@ -195,7 +195,7 @@
                         {% endif %}
                     </p>
                     {% if not search_query and not selected_status %}
-                        {% if user.is_superuser or user.role.name == 'Editor' or user.role.name == 'Administrator' %}
+                        {% if user.is_superuser or user.role and user.role.name == 'Editor' or user.role and user.role.name == 'Administrator' %}
                             <a href="{% url 'projects:project_create' %}" class="btn btn-primary">
                                 <i class="bi bi-plus-circle me-2"></i>
                                 {% trans "Create First Project" %}

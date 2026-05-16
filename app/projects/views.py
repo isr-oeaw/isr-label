@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.http import Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
@@ -18,6 +18,8 @@ from .forms import (
     ProjectMemberRoleForm,
     ProjectTransferOwnershipForm,
 )
+from labeling.models import ImageAsset, LabelDataset, LabelSchema
+from labeling.permissions import can_download_labeling_export
 from .models import Project, ProjectMembership, ensure_owner_membership
 
 User = get_user_model()
@@ -32,6 +34,26 @@ def _is_project_admin(user, project):
         return True
     m = project.get_membership(user)
     return m and m.role == ProjectMembership.Role.ADMIN
+
+
+def _can_edit_project_metadata(user, project):
+    """Project title/description/etc. form: owner or superuser only."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return project.owner_id == user.id
+
+
+def _schema_label_preview(config, max_labels=3):
+    labels = (config or {}).get('labels') or []
+    parts = []
+    for item in labels[:max_labels]:
+        if isinstance(item, dict) and item.get('name'):
+            parts.append(str(item['name']))
+    if len(labels) > max_labels:
+        parts.append('…')
+    return ', '.join(parts)
 
 
 class EditorOrAdministratorMixin(UserPassesTestMixin):
@@ -50,7 +72,7 @@ class EditorOrAdministratorMixin(UserPassesTestMixin):
             self.request,
             'Access denied. Only Editors and Administrators can create projects.',
         )
-        return redirect('projects:project_list')
+        return redirect('home')
 
 
 class ProjectListView(LoginRequiredMixin, ListView):
@@ -94,10 +116,7 @@ class ProjectDetailView(LoginRequiredMixin, DetailView):
     context_object_name = 'project'
 
     def get_queryset(self):
-        return Project.objects.select_related('owner').prefetch_related(
-            'memberships__user',
-            'labeling_datasets',
-        )
+        return Project.objects.select_related('owner').prefetch_related('memberships__user')
 
     def get_object(self, queryset=None):
         obj = super().get_object(queryset)
@@ -109,8 +128,48 @@ class ProjectDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         p = self.object
         u = self.request.user
-        context['can_edit'] = p.can_edit(u)
+        context['can_edit_project'] = _can_edit_project_metadata(u, p)
         context['is_project_member'] = p.is_member(u)
+        context['labeling_can_admin'] = _is_project_admin(u, p)
+        context['project_label_datasets'] = list(
+            LabelDataset.objects.filter(project=p)
+            .annotate(
+                num_images=Count('images', distinct=True),
+                num_tasks=Count('images__tasks', distinct=True),
+                num_tasks_done=Count(
+                    'images__tasks',
+                    filter=Q(images__tasks__is_labeled=True),
+                    distinct=True,
+                ),
+                num_assigned_users=Count('assigned_users', distinct=True),
+                num_assigned_groups=Count('assigned_groups', distinct=True),
+            )
+            .order_by('name')
+        )
+        if context['labeling_can_admin']:
+            for d in context['project_label_datasets']:
+                d.images_without_task_count = (
+                    ImageAsset.objects.filter(dataset_id=d.pk)
+                    .annotate(_tc=Count('tasks'))
+                    .filter(_tc=0)
+                    .count()
+                )
+        else:
+            for d in context['project_label_datasets']:
+                d.images_without_task_count = 0
+
+        context['label_schemata_for_labeling'] = list(
+            LabelSchema.objects.filter(project=p, selected_for_labeling=True)
+            .annotate(num_tasks=Count('tasks'))
+            .order_by('-id')
+        )
+        for sch in context['label_schemata_for_labeling']:
+            sch.label_preview = _schema_label_preview(sch.config)
+
+        context['labeling_can_export'] = can_download_labeling_export(u, p)
+        context['project_shared_members'] = [
+            m for m in p.memberships.all() if m.user_id != p.owner_id
+        ]
         return context
 
 
@@ -147,17 +206,7 @@ class ProjectUpdateView(LoginRequiredMixin, UpdateView):
         u = self.request.user
         if u.is_superuser:
             return Project.objects.all()
-        return Project.objects.filter(
-            Q(owner=u)
-            | Q(
-                memberships__user=u,
-                memberships__role__in=[
-                    ProjectMembership.Role.ADMIN,
-                    ProjectMembership.Role.REVIEWER,
-                    ProjectMembership.Role.ANNOTATOR,
-                ],
-            )
-        ).distinct()
+        return Project.objects.filter(owner=u)
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -180,16 +229,26 @@ class ProjectUpdateView(LoginRequiredMixin, UpdateView):
 class ProjectDeleteView(LoginRequiredMixin, DeleteView):
     model = Project
     template_name = 'projects/project_confirm_delete.html'
-    success_url = reverse_lazy('projects:project_list')
+
+    def get_success_url(self):
+        u = self.request.user
+        if u.is_staff or u.is_superuser:
+            return reverse_lazy('projects:project_list')
+        return reverse_lazy('home')
 
     def get_queryset(self):
-        return Project.objects.filter(owner=self.request.user)
+        u = self.request.user
+        if u.is_superuser:
+            return Project.objects.all()
+        return Project.objects.filter(owner=u)
 
-    def delete(self, request, *args, **kwargs):
-        project = self.get_object()
-        title = project.title
-        response = super().delete(request, *args, **kwargs)
-        messages.success(request, _('Project "%(t)s" has been deleted successfully.') % {'t': title})
+    def form_valid(self, form):
+        title = self.object.title
+        response = super().form_valid(form)
+        messages.success(
+            self.request,
+            _('Project "%(t)s" has been deleted successfully.') % {'t': title},
+        )
         return response
 
 
@@ -232,9 +291,6 @@ class ProjectTransferOwnershipView(LoginRequiredMixin, UpdateView):
 
     def get_success_url(self):
         return reverse_lazy('projects:project_detail', kwargs={'pk': self.object.pk})
-
-
-from django.utils.translation import gettext as _
 
 
 class ProjectMembersView(LoginRequiredMixin, TemplateView):

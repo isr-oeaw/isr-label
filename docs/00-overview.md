@@ -3,11 +3,11 @@
 ## Goals
 
 - **Projects**: Create and manage research projects; scope labeling work and membership.
-- **Geolocated images**: Upload images, extract EXIF/GPS, store in PostGIS, browse on a map.
+- **Geolocated images**: Upload images, extract EXIF/GPS when present, store optional coordinates in PostGIS (`ImageAsset.location`).
 - **Label tasks**: One task per (project, image, schema) with overlap, locks, and drafts.
 - **Annotation UI**: Label Studio–like workflow: tools (classification, box, polygon, point), keyboard shortcuts, zoom/pan, submit/skip.
 - **Users & groups**: Per-project roles (admin, reviewer, annotator, viewer) via `ProjectMembership`.
-- **Export**: COCO, YOLO, GeoJSON for downstream ML and GIS.
+- **Export**: COCO and YOLO ZIP bundles for downstream ML.
 
 ## Non-goals (current phase)
 

@@ -28,7 +28,7 @@
 - [x] DRF routers + OpenAPI
 - [x] Static Konva/JS + templates
 
-**Acceptance:** Browser can complete one full label cycle; map shows point when GPS exists.
+**Acceptance:** Browser can complete one full label cycle; optional GPS stored on `ImageAsset` when EXIF provides it.
 
 ## Phase 4 — Review, export, consensus, tests
 
