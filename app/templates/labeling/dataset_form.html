@@ -1,8 +1,26 @@
 {% extends "_base.html" %}
 {% load i18n %}
 {% block title %}{% trans "New dataset" %}{% endblock %}
+
+{% block navbar_trail %}
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <a class="nav-link" href="{% url 'projects:project_detail' project.pk %}">{{ project.title }}</a>
+</li>
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <span class="navbar-text text-white fw-semibold mb-0 py-2">{% trans "New dataset" %}</span>
+</li>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4" style="max-width: 560px;">
+  <p class="mb-3"><a href="{% url 'projects:project_detail' project.pk %}#label-datasets">← {% trans "Back to project" %}</a></p>
+  <h1 class="h4 mb-3">{% trans "New dataset" %}</h1>
   <form method="post">{% csrf_token %}
     {{ form.as_p }}
     <button class="btn btn-primary" type="submit">{% trans "Create" %}</button>

@@ -4,20 +4,23 @@
 
 | URL | Template | Purpose |
 |-----|----------|---------|
-| `/labeling/projects/{id}/` | `labeling/project_dashboard.html` | Stats, links to datasets, map, tasks |
-| `/labeling/projects/{id}/datasets/` | `labeling/dataset_list.html` | List datasets + create |
-| `/labeling/projects/{id}/datasets/{ds_id}/upload/` | `labeling/dataset_upload.html` | Multi-file upload |
-| `/labeling/projects/{id}/map/` | `labeling/map.html` | Leaflet map of images |
-| `/labeling/tasks/{id}/` | `labeling/task.html` | Konva workspace |
-| `/labeling/projects/{id}/schema/` | `labeling/schema_editor.html` | Edit active schema config (admin) |
+| `/projects/{id}/` | `projects/project_detail.html` | Project overview, label datasets (list, create, upload links) |
+| `/labeling/projects/{id}/` | `labeling/project_dashboard.html` | Stats, links to datasets and tasks |
+| `/labeling/projects/{id}/datasets/create/` | `labeling/dataset_form.html` | Create dataset |
+| `/labeling/projects/{id}/datasets/{ds_id}/upload/` | `labeling/dataset_upload.html` | Multi-file upload; redirects to project **Label datasets** after success |
+| `/labeling/projects/{id}/tasks/{id}/` | `labeling/task.html` | Konva workspace |
+| `/labeling/projects/{id}/schemas/` | `labeling/schema_list.html` | **Labeling setup:** templates by category, current setup row, toggle list visibility (admin) |
+| `/labeling/projects/{id}/schemas/apply-template/` | — | **POST (admin):** replace setup from template slug |
+| `/labeling/projects/{id}/schemas/edit/` | `labeling/schema_editor.html` | Guided steps + instructions + raw JSON / CodeMirror (admin) |
+| `/labeling/projects/{id}/schema/` | — | Redirects to labeling setup list |
 | `/labeling/projects/{id}/review/` | `labeling/review.html` | Reviewer queue (optional table) |
 
 ## `task.html` layout
 
-- **Left column**: project title, task id, image filename, help link for shortcuts.
-- **Center**: Konva `Stage` with image as background, zoom (wheel at cursor), pan (space+drag or middle button).
-- **Right column**: label list with color + hotkey `1-9`, tool buttons (classify, rect, poly, point).
-- **Bottom bar**: Save draft, Submit, Skip, **Next** (if API allows).
+- **Top bar (full width)**: link **Back to labeling**, live **status** text (`#label-status`), **image filename** (basename) when available, task id in muted text, optional **Instructions** button (opens modal when `schema.config.instructions` is set).
+- **Body**: single main row — **left/flex-fill** is the Konva stage (`#label-stage` inside `#label-stage-wrapper`, sized to the container with letterboxed image); **no separate left metadata column**.
+- **Right sidebar** (~300px, scrollable): **Labels** (schema label list with color swatch, name, hotkey), **Tools** (one control per entry in `schema.config.tools`; bounding box wired, other tools disabled with “not available” tooltip in MVP), optional shortcut hint, then **Submit** and **Skip / Next** (with hidden `next-url` for post-submit redirect).
+- Draft still **autosaves** in the background (debounced); there is no separate Save draft button on the task page today.
 
 ## Default keyboard shortcuts (MVP)
 

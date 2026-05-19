@@ -1,4 +1,3 @@
-import secrets
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.utils.translation import gettext_lazy as _
@@ -178,104 +177,6 @@ class CustomUser(AbstractUser):
             return True
 
 
-class APIKey(models.Model):
-    """API Key model for user authentication"""
-    user = models.ForeignKey(
-        CustomUser,
-        on_delete=models.CASCADE,
-        related_name='api_keys',
-        verbose_name=_('User'),
-        help_text=_('The user who owns this API key')
-    )
-    name = models.CharField(
-        max_length=100,
-        verbose_name=_('Name'),
-        help_text=_('A descriptive name for this API key (e.g., "My Script", "Production API")')
-    )
-    key = models.CharField(
-        max_length=64,
-        unique=True,
-        verbose_name=_('API Key'),
-        help_text=_('The API key value (shown only once when created)')
-    )
-    prefix = models.CharField(
-        max_length=8,
-        verbose_name=_('Key Prefix'),
-        help_text=_('First 8 characters of the key for identification')
-    )
-    is_active = models.BooleanField(
-        default=True,
-        verbose_name=_('Active'),
-        help_text=_('Whether this API key is active and can be used')
-    )
-    created_at = models.DateTimeField(
-        auto_now_add=True,
-        verbose_name=_('Created At'),
-        help_text=_('When this API key was created')
-    )
-    last_used_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        verbose_name=_('Last Used At'),
-        help_text=_('When this API key was last used')
-    )
-    expires_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        verbose_name=_('Expires At'),
-        help_text=_('Optional expiration date for this API key')
-    )
-
-    class Meta:
-        verbose_name = _('API Key')
-        verbose_name_plural = _('API Keys')
-        ordering = ['-created_at']
-        indexes = [
-            models.Index(fields=['key']),
-            models.Index(fields=['user', 'is_active']),
-        ]
-
-    def __str__(self):
-        return f"{self.name} ({self.prefix}...)" if self.prefix else f"{self.name}"
-
-    @classmethod
-    def generate_key(cls, user, name, expires_at=None):
-        """Generate a new API key for a user"""
-        # Generate a secure random key (64 characters)
-        key = secrets.token_urlsafe(48)  # Generates ~64 character URL-safe string
-        prefix = key[:8]
-        
-        api_key = cls.objects.create(
-            user=user,
-            name=name,
-            key=key,
-            prefix=prefix,
-            expires_at=expires_at
-        )
-        return api_key
-
-    def is_expired(self):
-        """Check if the API key has expired"""
-        if self.expires_at:
-            return timezone.now() > self.expires_at
-        return False
-
-    def is_valid(self):
-        """Check if the API key is valid (active and not expired)"""
-        return self.is_active and not self.is_expired()
-
-    def update_last_used(self):
-        """Update the last used timestamp"""
-        self.last_used_at = timezone.now()
-        self.save(update_fields=['last_used_at'])
-
-    def revoke(self):
-        """Revoke the API key"""
-        self.is_active = False
-        self.save(update_fields=['is_active'])
-
-
 # Register models for audit logging
 auditlog.register(CustomUser)
 auditlog.register(Role)
-auditlog.register(APIKey)

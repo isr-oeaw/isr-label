@@ -1,3 +1,3 @@
-from . import coco, geojson, package, yolo
+from . import coco, package, yolo
 
-__all__ = ['coco', 'geojson', 'package', 'yolo']
+__all__ = ['coco', 'package', 'yolo']

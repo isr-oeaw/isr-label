@@ -12,17 +12,13 @@
 
 ## COCO
 
-- `info`, `licenses` (empty), `categories` from label schema, `images` from `ImageAsset` (width, height, file name), `annotations` with `bbox` in **pixels** (converted from normalized using image dimensions) and `category_id`.
-
-## GeoJSON (FeatureCollection)
-
-- `ImageAsset` with `location`: `Point` geometry.
-- `properties`: `image_url`, `project_id`, `task_id`, optional summary of class counts.
-- Subfolder `annotations/` with optional per-image GeoJSON for GIS workflows.
+- `info`, `licenses` (empty), `categories` from label schema, `images` from `ImageAsset` (width, height, file name), `annotations` with `bbox` in **pixels** (converted from normalized using image dimensions).
+- **`type: rect`** in `Annotation.result`: `bbox` only (XYWH).
+- **`type: polygon`**: `bbox` as tight axis-aligned box around the polygon and **`segmentation`**: list of one ring `[x1,y1,x2,y2,...]` in **absolute pixels** (COCO list-of-polygon-rings). `area` is the polygon area via shoelace (ring not self-crossing).
 
 ## Export endpoint
 
-- `POST /api/v1/projects/{id}/export/?format=zip&variants=coco,yolo,geojson`
+- `POST /api/v1/projects/{id}/export/?format=zip&variants=coco,yolo`
 - Returns `application/zip` with a manifest `README.txt`.
 
 ## Consensus (Phase 4)

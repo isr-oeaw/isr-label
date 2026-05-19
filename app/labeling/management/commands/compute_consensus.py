@@ -42,6 +42,5 @@ class Command(BaseCommand):
                     lead_time=0.0,
                     status=A.Status.APPROVED,
                     completed_by=None,
-                    schema_version=t.schema.version,
                 )
         self.stdout.write(self.style.SUCCESS('Done.'))

@@ -4,6 +4,7 @@ from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta
 from unittest.mock import patch
+from types import SimpleNamespace
 
 from .views import HomePageView, AnnouncementManagementView, AnnouncementCreateView, AnnouncementUpdateView, AnnouncementDeleteView
 from .models import Announcement
@@ -25,6 +26,7 @@ class HomepageTests(TestCase):
         r = self.client.get(reverse("home"))
         self.assertEqual(r.status_code, 200)
         self.assertTemplateUsed(r, "home.html")
+        self.assertContains(r, 'id="home-dashboard-personal-tasks"')
 
     def test_home_url_name(self):
         self.assertEqual(resolve("/").url_name, "home")
@@ -32,6 +34,34 @@ class HomepageTests(TestCase):
     def test_home_resolves_to_homepageview_class(self):
         match = resolve("/")
         self.assertIs(match.func.view_class, HomePageView)
+
+    @patch(
+        "pages.views.queue_svc.get_next_task_globally",
+        return_value=None,
+    )
+    def test_home_hides_label_next_when_no_queue_task(self, _mock_next):
+        u = User.objects.create_user(
+            username="hnxt", email="hnxt@test.local", password="pass-12345"
+        )
+        self.client.login(username="hnxt", password="pass-12345")
+        r = self.client.get(reverse("home"))
+        self.assertEqual(r.status_code, 200)
+        self.assertNotContains(r, reverse("labeling:next_global"))
+        self.assertContains(r, "All labeling tasks done!")
+
+    @patch(
+        "pages.views.queue_svc.get_next_task_globally",
+        return_value=(SimpleNamespace(id=1), SimpleNamespace(id=2)),
+    )
+    def test_home_shows_label_next_when_queue_has_task(self, _mock_next):
+        u = User.objects.create_user(
+            username="hnxt2", email="hnxt2@test.local", password="pass-12345"
+        )
+        self.client.login(username="hnxt2", password="pass-12345")
+        r = self.client.get(reverse("home"))
+        self.assertEqual(r.status_code, 200)
+        self.assertContains(r, reverse("labeling:next_global"))
+        self.assertNotContains(r, "All labeling tasks done!")
 
 
 class AnnouncementModelTests(TestCase):

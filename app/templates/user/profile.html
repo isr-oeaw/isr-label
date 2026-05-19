@@ -145,10 +145,12 @@
                         </div>
                         {% if is_own_profile %}
                             <div class="text-center mt-3">
+                                {% if user.is_staff or user.is_superuser %}
                                 <a href="{% url 'projects:project_list' %}" class="btn btn-outline-primary btn-sm">
                                     <i class="bi bi-list me-2"></i>
                                     {% trans "View All Projects" %}
                                 </a>
+                                {% endif %}
                             </div>
                         {% endif %}
                     {% else %}
@@ -182,17 +184,24 @@
                         {% trans "Label datasets" %}
                     </h5>
                     {% if is_own_profile %}
+                        {% if user.is_staff or user.is_superuser %}
                         <a href="{% url 'projects:project_list' %}" class="btn btn-outline-success btn-sm">
                             <i class="bi bi-folder2-open me-1"></i>
                             {% trans "Open project" %}
                         </a>
+                        {% else %}
+                        <a href="{% url 'home' %}" class="btn btn-outline-success btn-sm">
+                            <i class="bi bi-house me-1"></i>
+                            {% trans "Dashboard" %}
+                        </a>
+                        {% endif %}
                     {% endif %}
                 </div>
                 <div class="card-body">
                     {% if user_label_datasets %}
                         <div class="list-group list-group-flush">
                             {% for dataset in user_label_datasets %}
-                            <a href="{% url 'labeling:dataset_list' project_id=dataset.project_id %}" class="list-group-item list-group-item-action">
+                            <a href="{% url 'projects:project_detail' pk=dataset.project_id %}#label-datasets" class="list-group-item list-group-item-action">
                                 <div class="d-flex w-100 justify-content-between">
                                     <h6 class="mb-1">{{ dataset.name }}</h6>
                                 </div>

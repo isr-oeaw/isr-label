@@ -21,7 +21,8 @@ Base path: `/api/v1/`
 | Method | Path | Description |
 |--------|------|-------------|
 | GET, POST | `/projects/{id}/labeling_datasets/` | Datasets |
-| GET, POST | `/projects/{id}/labeling_datasets/{ds_id}/images/` | Upload metadata / list images |
+| GET, POST | `/projects/{id}/labeling_datasets/{ds_id}/images/` | Upload image; creates task |
+| POST | `/projects/{id}/datasets/{ds_id}/import_masks/` | ZIP of mask PNG/TIF (stem = image stem); form: `mapping` JSON, optional `background`, `replace` (admin); see [10-segmentation-import.md](10-segmentation-import.md) |
 | GET | `/projects/{id}/tasks/` | List tasks (filters) |
 | GET | `/projects/{id}/tasks/next/` | Next available task for current user |
 | POST | `/tasks/{id}/lock/` | Acquire or refresh lock |

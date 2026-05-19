@@ -20,25 +20,6 @@
             --isr-primary-dark: #003a99;
         }
         
-        /* Sticky footer styles */
-        html, body {
-            height: 100%;
-        }
-        
-        body {
-            display: flex;
-            flex-direction: column;
-            min-height: 100vh;
-        }
-        
-        main {
-            flex: 1 0 auto;
-        }
-        
-        footer {
-            flex-shrink: 0;
-        }
-        
         /* ISR Brand Styling */
         .navbar-dark {
             background-color: var(--isr-primary) !important;
@@ -173,19 +154,6 @@
             background-color: #dc3545 !important;
         }
         
-        /* Footer styling */
-        footer {
-            background-color: var(--isr-secondary) !important;
-            color: white !important;
-        }
-        
-        footer a {
-            color: var(--isr-accent) !important;
-        }
-        
-        footer a:hover {
-            color: white !important;
-        }
     </style>
     {% block extra_css %}{% endblock %}
 </head>
@@ -199,13 +167,11 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 {% if user.is_authenticated %}
-                <ul class="navbar-nav me-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'home' %}">Dashboard</a>
-                    </li>
+                <ul class="navbar-nav me-auto align-items-lg-center flex-wrap">
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'projects:project_list' %}">{% trans "Projects" %}</a>
                     </li>
+                    {% block navbar_trail %}{% endblock %}
                 </ul>
                 <ul class="navbar-nav">
                     <li class="nav-item dropdown">
@@ -216,13 +182,14 @@
                              <li><a class="dropdown-item" href="{% url 'user-profile' %}">My Profile</a></li>
                              <li><a class="dropdown-item" href="{% url 'user-settings' %}">Settings</a></li>
                              <li><a class="dropdown-item" href="{% url 'documentation' %}">Documentation</a></li>
+                             <li><hr class="dropdown-divider"></li>
                              {% if user.is_superuser or user.role and user.role.name == 'Administrator' %}
                              <li><a class="dropdown-item" href="{% url 'user-management' %}">Users</a></li>
                              {% endif %}
                              {% if user.is_superuser %}
                              <li><a class="dropdown-item" href="{% url 'logs' %}">Logs</a></li>
-                             {% endif %}
                              <li><hr class="dropdown-divider"></li>
+                             {% endif %}
                              <li><a class="dropdown-item" href="{% url 'account_logout' %}">Logout</a></li>
                          </ul>
                     </li>
@@ -245,13 +212,6 @@
     <main>
         {% block content %}{% endblock %}
     </main>
-
-    <!-- Footer -->
-    <footer class="bg-light text-center text-muted py-3 mt-2">
-        <div class="container">
-            <p class="mb-0">&copy; {% now "Y" %} {{ SITE_NAME }}</p>
-        </div>
-    </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     {% block extra_js %}{% endblock %}

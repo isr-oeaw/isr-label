@@ -10,7 +10,11 @@ urlpatterns = [
     path('v1/projects/<int:project_pk>/tasks/', views.TaskList.as_view(), name='tasks_list'),
     path('v1/projects/<int:project_pk>/tasks/next/', views.next_task, name='tasks_next'),
     path('v1/projects/<int:project_pk>/export/', views.project_export, name='project_export'),
-    path('v1/projects/<int:project_pk>/geojson/', views.project_geojson, name='project_geojson'),
+    path(
+        'v1/projects/<int:project_pk>/datasets/<int:dataset_pk>/import_masks/',
+        views.dataset_import_masks,
+        name='dataset_import_masks',
+    ),
     path(
         'v1/projects/<int:project_pk>/datasets/<int:dataset_pk>/images/',
         views.image_upload,

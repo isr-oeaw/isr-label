@@ -1,0 +1,49 @@
+{% extends "_base.html" %}
+{% load i18n %}
+{% block title %}{% trans "Dataset assignees" %} — {{ dataset.name }}{% endblock %}
+
+{% block navbar_trail %}
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <a class="nav-link" href="{% url 'projects:project_detail' project.pk %}">{{ project.title }}</a>
+</li>
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <span class="navbar-text text-white fw-semibold mb-0 py-2">{% trans "Dataset assignees" %}</span>
+</li>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+  <h1 class="h3">{{ dataset.name }}</h1>
+  <p class="text-muted">{% trans "Choose who may see labeling tasks for images in this dataset. If both lists are empty, any project member who can label may work on these tasks." %}</p>
+  <form method="post" class="mt-3" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+    <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+    {% endif %}
+    <div class="row g-4">
+      <div class="col-md-6">
+        <label class="form-label" for="id_assigned_users">{{ form.assigned_users.label }}</label>
+        {{ form.assigned_users }}
+        {% if form.assigned_users.help_text %}<div class="form-text">{{ form.assigned_users.help_text }}</div>{% endif %}
+        {{ form.assigned_users.errors }}
+      </div>
+      <div class="col-md-6">
+        <label class="form-label" for="id_assigned_groups">{{ form.assigned_groups.label }}</label>
+        {{ form.assigned_groups }}
+        {% if form.assigned_groups.help_text %}<div class="form-text">{{ form.assigned_groups.help_text }}</div>{% endif %}
+        {{ form.assigned_groups.errors }}
+      </div>
+    </div>
+    <div class="mt-4 d-flex flex-wrap gap-2">
+      <button type="submit" class="btn btn-primary">{% trans "Save" %}</button>
+      <a class="btn btn-outline-secondary" href="{% url 'projects:project_detail' project.pk %}#label-datasets">{% trans "Cancel" %}</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

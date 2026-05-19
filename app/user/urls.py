@@ -4,10 +4,11 @@ from allauth.account import urls as allauth_account_urls
 from allauth.account import views as allauth_account_views
 
 from user.views import (
-    AccountDeleteView, SettingsView, SignupPageView, 
-    UsersUpdateView, UsersListView, UserCreateView, RoleListView, RoleCreateView, 
-    RoleUpdateView, RoleDeleteView, user_management_view, data_export_view,
-    PendingUsersView, approve_user, reject_user, UserProfileView, resend_email_verification
+    AccountDeleteView, SettingsView, SignupPageView,
+    UsersUpdateView, UserManagementView, UserCreateView, RoleListView, RoleCreateView,
+    RoleUpdateView, RoleDeleteView, data_export_view,
+    PendingUsersView, approve_user, reject_user, UserProfileView, resend_email_verification,
+    SuperuserSetUserPasswordView, AdminUserDeleteView,
 )
 
 
@@ -46,9 +47,10 @@ urlpatterns = [
     path('profile/<int:user_id>/', UserProfileView.as_view(), name='user-profile-detail'),
     path('data-export/', data_export_view, name='data-export'),
     path("signup/", SignupPageView.as_view(), name="user-signup"),
-    path('list/', UsersListView.as_view(), name='user-list'),
     path('create/', UserCreateView.as_view(), name='user-create'),
+    path('edit/<int:user_id>/delete/', AdminUserDeleteView.as_view(), name='user-admin-delete'),
     path('edit/<int:user_id>/', UsersUpdateView.as_view(), name='user-edit'),
+    path('password/<int:user_id>/', SuperuserSetUserPasswordView.as_view(), name='user-admin-password'),
     
     # User Approval
     path('pending/', PendingUsersView.as_view(), name='pending-users'),
@@ -62,7 +64,7 @@ urlpatterns = [
     path('roles/<int:pk>/delete/', RoleDeleteView.as_view(), name='role-delete'),
     
     # User Management Dashboard
-    path('management/', user_management_view, name='user-management'),
+    path('management/', UserManagementView.as_view(), name='user-management'),
     
     # Email Verification
     path('resend-verification/', resend_email_verification, name='resend-email-verification'),

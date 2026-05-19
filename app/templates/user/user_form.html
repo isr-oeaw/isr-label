@@ -14,7 +14,7 @@
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb">
                             <li class="breadcrumb-item">
-                                <a href="{% url 'user-list' %}">{% trans "Users" %}</a>
+                                <a href="{% url 'user-management' %}">{% trans "Users" %}</a>
                             </li>
                             <li class="breadcrumb-item active" aria-current="page">{% trans "Add User" %}</li>
                         </ol>
@@ -188,7 +188,7 @@
 
                         <!-- Form Actions -->
                         <div class="d-flex justify-content-between">
-                            <a href="{% url 'user-list' %}" class="btn btn-outline-secondary">
+                            <a href="{% url 'user-management' %}" class="btn btn-outline-secondary">
                                 <i class="bi bi-arrow-left me-2"></i>
                                 {% trans "Back to Users" %}
                             </a>

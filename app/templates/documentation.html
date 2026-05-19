@@ -1,5 +1,132 @@
 {% extends "_base.html" %}
 {% load i18n %}
+
+{% block title %}{% trans "Documentation" %} - {{ SITE_NAME }}{% endblock %}
+
 {% block content %}
-<div class="container mt-4"><h1>{% trans "Documentation" %}</h1></div>
+<div class="container mt-4 mb-5">
+    <a href="#documentation-main" class="visually-hidden visually-hidden-focusable btn btn-sm btn-outline-primary mb-3 d-inline-block">{% trans "Skip to documentation content" %}</a>
+
+    <header class="mb-4">
+        <h1 class="h2 mb-2">{% trans "User guide" %}</h1>
+        <p class="text-muted mb-0">{% trans "How to use the platform for labeling, review, and export." %}</p>
+    </header>
+
+    <div class="d-lg-none mb-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-light">
+                <h2 class="h6 mb-0">{% trans "On this page" %}</h2>
+            </div>
+            <nav id="documentation-toc-mobile" class="list-group list-group-flush" aria-label="{% trans 'Table of contents' %}">
+                <a class="list-group-item list-group-item-action py-2 small" href="#getting-started">{% trans "Getting started" %}</a>
+                <a class="list-group-item list-group-item-action py-2 small" href="#projects-access">{% trans "Projects and access" %}</a>
+                <a class="list-group-item list-group-item-action py-2 small" href="#project-roles">{% trans "Project roles" %}</a>
+                <a class="list-group-item list-group-item-action py-2 small" href="#labeling">{% trans "Labeling workflow" %}</a>
+                <a class="list-group-item list-group-item-action py-2 small" href="#datasets">{% trans "Datasets and assignments" %}</a>
+                <a class="list-group-item list-group-item-action py-2 small" href="#review">{% trans "Review" %}</a>
+                <a class="list-group-item list-group-item-action py-2 small" href="#export">{% trans "Export" %}</a>
+                <a class="list-group-item list-group-item-action py-2 small" href="#further-reading">{% trans "Further reading" %}</a>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <aside class="col-lg-3 d-none d-lg-block">
+            <nav id="documentation-toc" class="list-group sticky-top border rounded small" style="top: 1rem;" aria-label="{% trans 'Table of contents' %}">
+                <a class="list-group-item list-group-item-action" href="#getting-started">{% trans "Getting started" %}</a>
+                <a class="list-group-item list-group-item-action" href="#projects-access">{% trans "Projects and access" %}</a>
+                <a class="list-group-item list-group-item-action" href="#project-roles">{% trans "Project roles" %}</a>
+                <a class="list-group-item list-group-item-action" href="#labeling">{% trans "Labeling workflow" %}</a>
+                <a class="list-group-item list-group-item-action" href="#datasets">{% trans "Datasets and assignments" %}</a>
+                <a class="list-group-item list-group-item-action" href="#review">{% trans "Review" %}</a>
+                <a class="list-group-item list-group-item-action" href="#export">{% trans "Export" %}</a>
+                <a class="list-group-item list-group-item-action" href="#further-reading">{% trans "Further reading" %}</a>
+            </nav>
+        </aside>
+        <div id="documentation-main" class="col-lg-9">
+            <article class="documentation-body">
+                <section id="getting-started" class="mb-5" aria-labelledby="heading-getting-started">
+                    <h2 id="heading-getting-started" class="h4 border-bottom pb-2">{% trans "Getting started" %}</h2>
+                    {% comment %}Screenshot suggestions: login/registration page; home dashboard (welcome, intro card with Label next, your label tasks table); user dropdown open showing Profile and Settings.{% endcomment %}
+                    <ul class="mt-3">
+                        <li>{% trans "Create an account or sign in from the login page." %}{% if not user.is_authenticated %} <a href="{% url 'account_login' %}">{% trans "Sign in" %}</a>{% endif %}</li>
+                        <li>{% blocktrans trimmed %}After you sign in, the home dashboard lists <strong>your label tasks</strong> across projects you can access and offers <strong>Label next</strong> to jump to the next available task.{% endblocktrans %}</li>
+                        <li>{% blocktrans trimmed %}Each project also has a <strong>labeling</strong> area with the same task list scoped to that project and its progress summary.{% endblocktrans %}</li>
+                        <li>{% blocktrans trimmed %}Use the profile <strong>Settings</strong> link in the menu for your account and preferences.{% endblocktrans %}</li>
+                    </ul>
+                </section>
+
+                <section id="projects-access" class="mb-5" aria-labelledby="heading-projects-access">
+                    <h2 id="heading-projects-access" class="h4 border-bottom pb-2">{% trans "Projects and access" %}</h2>
+                    {% comment %}Screenshot suggestions: project detail header with visibility/status; Team/members page showing roles; optional staff-only project list if documenting internally.{% endcomment %}
+                    <p class="mt-3">{% blocktrans trimmed %}A <strong>project</strong> groups images, label schemas, and members. Access depends on project visibility and your membership.{% endblocktrans %}</p>
+                    <ul>
+                        <li>{% blocktrans trimmed %}<strong>Private</strong> projects are visible only to the owner, members, and administrators.{% endblocktrans %}</li>
+                        <li>{% blocktrans trimmed %}<strong>Public</strong> projects can be seen by any signed-in user for discovery; labeling still follows dataset and role rules.{% endblocktrans %}</li>
+                        <li>{% blocktrans trimmed %}<strong>Restricted</strong> projects may require special management permissions to view—ask your administrator if you cannot open one.{% endblocktrans %}</li>
+                    </ul>
+                    <p class="mt-3">{% blocktrans trimmed %}Each invited member has a <strong>project role</strong>. The following section describes each role.{% endblocktrans %}</p>
+                    <p class="mb-0">{% blocktrans trimmed %}The <strong>project list</strong> shows projects you own or belong to, plus any <strong>public</strong> projects. Use it to open a project and its labeling area.{% endblocktrans %}</p>
+                </section>
+
+                <section id="project-roles" class="mb-5" aria-labelledby="heading-project-roles">
+                    <h2 id="heading-project-roles" class="h4 border-bottom pb-2">{% trans "Project roles" %}</h2>
+                    {% comment %}Screenshot suggestions: Team/members page with roles; or invite dialog showing role choices.{% endcomment %}
+                    <p class="mt-3">{% blocktrans trimmed %}These roles control what someone can do <strong>inside a single project</strong>. The project owner always has full administrator powers for that project.{% endblocktrans %}</p>
+
+                    <h3 class="h5 mt-4">{% trans "Administrator" %}</h3>
+                    <p>{% blocktrans trimmed %}Administrators manage the project: invite or remove members, assign roles, edit project details, configure label schemas and datasets, upload images, and create labeling tasks. They can label, participate in review, and download labeling exports.{% endblocktrans %}</p>
+
+                    <h3 class="h5 mt-4">{% trans "Reviewer" %}</h3>
+                    <p>{% blocktrans trimmed %}Reviewers check submitted annotations and move work through review (for example approve, reject, or request changes). They can usually label tasks as well when they need to. They can download exports, but they do not manage membership or project/schema setup.{% endblocktrans %}</p>
+
+                    <h3 class="h5 mt-4">{% trans "Annotator" %}</h3>
+                    <p>{% blocktrans trimmed %}Annotators focus on labeling: they open tasks, draw or choose labels according to the schema, and submit their work. They do not change other people’s review status or manage project settings. Exporting bundled results is typically limited to administrators and reviewers.{% endblocktrans %}</p>
+
+                    <h3 class="h5 mt-4">{% trans "Viewer" %}</h3>
+                    <p class="mb-0">{% blocktrans trimmed %}Viewers can browse project content they are allowed to see but cannot label or review. Use this role when someone should follow progress without changing data.{% endblocktrans %}</p>
+                </section>
+
+                <section id="labeling" class="mb-5" aria-labelledby="heading-labeling">
+                    <h2 id="heading-labeling" class="h4 border-bottom pb-2">{% trans "Labeling workflow" %}</h2>
+                    {% comment %}Screenshot suggestions: per-project labeling dashboard (my tasks table, Label next); labeling task page with image canvas, tool bar, and submit.{% endcomment %}
+                    <p class="mt-3">{% blocktrans trimmed %}A <strong>task</strong> is one labeling job for an image under a schema. Tasks can be <strong>pending</strong> or <strong>done</strong> after you submit valid labels (or the rules allow empty submissions).{% endblocktrans %}</p>
+                    <ul>
+                        <li>{% blocktrans trimmed %}While you work, a soft <strong>lock</strong> helps reduce duplicate work; it expires if unused.{% endblocktrans %}</li>
+                        <li>{% blocktrans trimmed %}Your work is saved as a <strong>draft</strong> until you submit; then it becomes a submitted annotation subject to review rules.{% endblocktrans %}</li>
+                        <li>{% blocktrans trimmed %}Tools (boxes, polygons, points, classification) and keyboard shortcuts depend on how the project schema is configured.{% endblocktrans %}</li>
+                    </ul>
+                </section>
+
+                <section id="datasets" class="mb-5" aria-labelledby="heading-datasets">
+                    <h2 id="heading-datasets" class="h4 border-bottom pb-2">{% trans "Datasets and assignments" %}</h2>
+                    {% comment %}Screenshot suggestions: project detail label-datasets section (cards with image counts); dataset assignees UI; image upload or “create tasks” control as shown to admins.{% endcomment %}
+                    <p class="mt-3">{% blocktrans trimmed %}Images live in <strong>label datasets</strong> inside a project. Administrators can upload images and generate <strong>tasks</strong> from them.{% endblocktrans %}</p>
+                    <p>{% blocktrans trimmed %}Datasets can restrict labeling to certain users or groups. <strong>Open</strong> datasets (no assignees) can be labeled by anyone allowed to label in the project.{% endblocktrans %}</p>
+                    <p>{% blocktrans trimmed %}On the home dashboard and project labeling page, <strong>your tasks</strong> follow these rules: project owners see tasks tied to their assignee slice; other users see tasks allowed by dataset visibility. That keeps queues predictable for teams.{% endblocktrans %}</p>
+                </section>
+
+                <section id="review" class="mb-5" aria-labelledby="heading-review">
+                    <h2 id="heading-review" class="h4 border-bottom pb-2">{% trans "Review" %}</h2>
+                    {% comment %}Screenshot suggestions: project review list; optional detail of a submitted annotation or status control as reviewers see it.{% endcomment %}
+                    <p class="mt-3">{% blocktrans trimmed %}Reviewers and project admins can inspect submitted annotations and drive review status (for example submitted, approved, rejected, or needs revision) according to the project workflow.{% endblocktrans %}</p>
+                    <p>{% blocktrans trimmed %}Annotators typically submit work; changing final review states is limited to reviewer and admin roles.{% endblocktrans %}</p>
+                </section>
+
+                <section id="export" class="mb-5" aria-labelledby="heading-export">
+                    <h2 id="heading-export" class="h4 border-bottom pb-2">{% trans "Export" %}</h2>
+                    {% comment %}Screenshot suggestions: project detail export card or download control visible to allowed roles; optional ZIP download confirmation or format checklist.{% endcomment %}
+                    <p class="mt-3">{% blocktrans trimmed %}Project labeling results can be exported as ZIP bundles with <strong>COCO</strong> and <strong>YOLO</strong> formats.{% endblocktrans %}</p>
+                    <p>{% blocktrans trimmed %}Export actions are limited to users with permission (usually admins and reviewers). If you need an export, ask a project administrator.{% endblocktrans %}</p>
+                </section>
+
+                <section id="further-reading" class="mb-2" aria-labelledby="heading-further-reading">
+                    <h2 id="heading-further-reading" class="h4 border-bottom pb-2">{% trans "Further reading" %}</h2>
+                    {% comment %}Screenshot suggestions: optional “docs folder on GitHub” or internal wiki; not usually a product UI screenshot.{% endcomment %}
+                    <p class="mt-3">{% blocktrans trimmed %}Detailed specifications—architecture, data model, UI shortcuts, export formats, and API reference—live in the repository <code>docs/</code> folder for developers and administrators. This page is a short user-facing summary only.{% endblocktrans %}</p>
+                </section>
+            </article>
+        </div>
+    </div>
+</div>
 {% endblock %}

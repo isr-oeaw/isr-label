@@ -1,20 +1,15 @@
 from __future__ import annotations
 
 import json
-from io import StringIO
 from zipfile import ZipFile
 
-from labeling.models import Annotation, ImageAsset, Task
+from labeling.models import Annotation, Task
 from labeling.services.exporters import coco as coco_exp
 from labeling.services.exporters import yolo as yolo_exp
 
 
 def build_export_zip(project, zf: ZipFile, include: list[str]) -> None:
     """Write selected formats into a zipfile (names lowercase)."""
-    if 'geojson' in include:
-        from labeling.services.exporters import geojson
-        g = geojson.project_images_geojson(project)
-        zf.writestr('geo/images.geojson', json.dumps(g, indent=2))
     tasks = list(
         Task.objects.filter(project=project).select_related('image', 'schema', 'image__dataset')
     )

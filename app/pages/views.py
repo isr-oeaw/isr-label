@@ -1,17 +1,53 @@
 import logging
-import requests
-import json
-from datetime import datetime, timedelta
 
 from django.views.generic import TemplateView, ListView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
 from django.urls import reverse_lazy
 from django.conf import settings
-from django.db.models import Count, Q
+from django.db.models import Q
 from django.utils import timezone
 
+from labeling.services import queue as queue_svc
+
 logger = logging.getLogger(__name__)
+
+_HOME_DASHBOARD_TASK_LIMIT = 80
+
+
+def _accessible_projects_for_home(user):
+    from projects.models import Project
+
+    qs = Project.objects.select_related("owner").order_by("-updated_at")
+    if not user.is_superuser:
+        qs = qs.filter(
+            Q(owner=user) | Q(memberships__user=user) | Q(access_level="public")
+        ).distinct()
+    return [p for p in qs if p.is_accessible_by(user)]
+
+
+def build_home_personal_task_rows(user, limit=_HOME_DASHBOARD_TASK_LIMIT):
+    from labeling.models import Task
+    from labeling.services import task_visibility as tv
+    from labeling.views import LabelingDashboard
+
+    rows = []
+    truncated = False
+    for p in _accessible_projects_for_home(user):
+        if len(rows) >= limit:
+            truncated = True
+            break
+        task_base = Task.objects.filter(project=p)
+        my_tasks_qs = tv.filter_personal_label_tasks(p, user, task_base)
+        remaining = limit - len(rows)
+        tasks, batch_trunc = LabelingDashboard._materialize_dashboard_tasks(
+            my_tasks_qs, remaining + 1
+        )
+        if batch_trunc:
+            truncated = True
+        for t in tasks[:remaining]:
+            rows.append({"project": p, "task": t})
+    return rows, truncated
 
 
 class HomePageView(LoginRequiredMixin, TemplateView):
@@ -21,61 +57,15 @@ class HomePageView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         context['host'] = self.request.get_host()
         context['API_URL'] = settings.API_URL
-        
-        # Dashboard stats: labeling + projects (no legacy datasets app)
-        from user.models import CustomUser
-        from projects.models import Project
-        from labeling.models import ImageAsset, LabelDataset
 
-        thirty_days_ago = timezone.now() - timedelta(days=30)
-        total_label_datasets = LabelDataset.objects.count()
-        total_images = ImageAsset.objects.count()
-        total_users = CustomUser.objects.filter(is_active=True).count()
-        total_projects = Project.objects.count()
+        home_tasks, home_trunc = build_home_personal_task_rows(self.request.user)
+        context["home_personal_tasks"] = home_tasks
+        context["home_personal_tasks_truncated"] = home_trunc
 
-        recent_images = (
-            ImageAsset.objects.filter(created_at__gte=thirty_days_ago)
-            .select_related("dataset", "dataset__project")
-            .order_by("-created_at")[:10]
-        )
-        popular_label_datasets = (
-            LabelDataset.objects.annotate(ni=Count("images"))
-            .select_related("project")
-            .order_by("-ni", "-updated_at")[:5]
-        )
-        recent_projects = (
-            Project.objects.select_related("owner")
-            .order_by("-created_at")[:6]
+        context["home_show_label_next"] = (
+            queue_svc.get_next_task_globally(self.request.user) is not None
         )
 
-        user_label_datasets = []
-        if self.request.user.is_authenticated:
-            u = self.request.user
-            user_label_datasets = list(
-                LabelDataset.objects.filter(
-                    Q(project__owner=u) | Q(project__memberships__user=u)
-                )
-                .select_related("project")
-                .prefetch_related("images")
-                .distinct()
-                .order_by("-updated_at")[:5]
-            )
-
-        context.update(
-            {
-                "total_datasets": total_label_datasets,
-                "total_images": total_images,
-                "total_users": total_users,
-                "total_projects": total_projects,
-                "uptime_percentage": 99.9,
-                "recent_images": recent_images,
-                "popular_label_datasets": popular_label_datasets,
-                "recent_projects": recent_projects,
-                "user_label_datasets": user_label_datasets,
-                "thirty_days_ago": thirty_days_ago,
-            }
-        )
-        
         # Check if help section should be shown (only for 7 days after first login)
         show_help_section = False
         if self.request.user.is_authenticated and self.request.user.first_login_date:

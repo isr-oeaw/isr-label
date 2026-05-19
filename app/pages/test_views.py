@@ -15,6 +15,8 @@ class DocumentationViewTests(TestCase):
         r = self.client.get(reverse("documentation"))
         self.assertEqual(r.status_code, 200)
         self.assertTemplateUsed(r, "documentation.html")
+        self.assertContains(r, 'id="documentation-toc"')
+        self.assertContains(r, 'id="getting-started"')
 
 
 class AnnouncementManagementViewTests(TestCase):

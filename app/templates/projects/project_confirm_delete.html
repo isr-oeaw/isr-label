@@ -3,6 +3,21 @@
 
 {% block title %}{% trans "Delete Project" %} - {{ object.title }} - {% trans "ISR Datasets" %}{% endblock title %}
 
+{% block navbar_trail %}
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <a class="nav-link" href="{% url 'projects:project_detail' object.pk %}">{{ object.title }}</a>
+</li>
+<li class="nav-item d-flex align-items-center py-2 py-lg-0">
+    <span class="text-white-50 px-1" aria-hidden="true">/</span>
+</li>
+<li class="nav-item">
+    <span class="navbar-text text-white fw-semibold mb-0 py-2">{% trans "Delete Project" %}</span>
+</li>
+{% endblock %}
+
 {% block content %}
 <div class="container mt-4">
     <div class="row justify-content-center">
@@ -10,17 +25,6 @@
             <!-- Header -->
             <div class="row mb-4">
                 <div class="col-12">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb">
-                            <li class="breadcrumb-item">
-                                <a href="{% url 'projects:project_list' %}">{% trans "Projects" %}</a>
-                            </li>
-                            <li class="breadcrumb-item">
-                                <a href="{% url 'projects:project_detail' object.pk %}">{{ object.title }}</a>
-                            </li>
-                            <li class="breadcrumb-item active" aria-current="page">{% trans "Delete Project" %}</li>
-                        </ol>
-                    </nav>
                     <h1 class="h2 mb-1">
                         <i class="bi bi-trash me-2"></i>
                         {% trans "Delete Project" %}
