@@ -1,0 +1,67 @@
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - internal
+
+  app:
+    image: ghcr.io/isr-oeaw/isr-label:latest
+    command: >
+      sh -c "python manage.py collectstatic --noinput && python manage.py migrate && uvicorn main.asgi:application --host 0.0.0.0 --port 8000"
+    env_file:
+      - .env
+    volumes:
+      - media_data:/usr/src/app/media
+      - static_data:/usr/src/app/staticfiles
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - internal
+  
+  nginx:
+    image: ghcr.io/silvioheinze/isr-datasets-nginx:latest
+    restart: unless-stopped
+    volumes:
+      - static_data:/home/app/web/staticfiles
+      - media_data:/home/app/web/media
+    depends_on:
+      - app
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dataplexity-isrlabel.entrypoints=https"
+      - "traefik.http.routers.dataplexity-isrlabel.rule=Host(`isrlabel.dataplexity.eu`)"
+      - "traefik.http.routers.dataplexity-isrlabel.tls=true"
+      - "traefik.http.routers.dataplexity-isrlabel.tls.certresolver=http"
+      - "traefik.http.routers.dataplexity-isrlabel.service=dataplexity-isrlabel"
+      - "traefik.http.services.dataplexity-isrlabel.loadbalancer.server.port=80"
+      - "traefik.docker.network=proxy"
+      - "traefik.http.routers.dataplexity-isrlabel.middlewares=default@file"
+    networks:
+      - proxy
+      - internal
+
+networks:
+  internal:
+  proxy:
+    external: true
+
+volumes:
+  postgres_data:
+  media_data:
+  static_data:
